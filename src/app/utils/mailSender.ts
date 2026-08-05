@@ -4,7 +4,7 @@ import config from '../config';
 export const sendEmail = async (to: string, subject: string, html: string) => {
   const transporter = nodemailer.createTransport({
     host: 'smtp-relay.brevo.com', // 'smtp.gmail.com',
-    port: 587,
+    port: Number(config.email.port) || 587,
     secure: false, // TLS
     auth: {
       user: config.email.nodemailer_host_email, // Gmail address

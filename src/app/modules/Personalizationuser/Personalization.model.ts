@@ -89,51 +89,24 @@ const personalizationSchema = new Schema<IPersonalization>(
     interests: [
       {
         type: String,
-        enum: [
-          "Cone Skating",
-          "Artistic Skating",
-          "Rhythm/Line Skating",
-          "Inline Derby",
-          "Freestyle Skating",
-          "Ramp Skating",
-          "Downhill / Marathon Skating",
-          "Freestyle Slalom Skating",
-          "Distance / Marathon Skating",
-          "Park Skating",
-          "Speed Skating",
-          "Aggressive Skating",
-          "Slalom Skating",
-          "Quad Skating",
-          "Inline Hockey",
-        ],
       },
     ],
 
     // Personalization 4 — Skill Level
     skillLevel: {
       type: String,
-      enum: ["Beginner", "Intermediate", "Advanced", ""],
       default: "",
     },
 
     // Personalization 5 — Years Skating
     yearsSkating: {
       type: String,
-      enum: [
-        "0-5 years",
-        "6-10 years",
-        "11-25 years",
-        "16-20 years",
-        "20+ years",
-        "",
-      ],
       default: "",
     },
 
     // "Have you organized skating events before?"
     hasOrganizedEvents: {
       type: String,
-      enum: ["Yes", "No", ""],
       default: "",
     },
 
@@ -141,30 +114,6 @@ const personalizationSchema = new Schema<IPersonalization>(
     planningEventTypes: [
       {
         type: String,
-        enum: [
-          "Park Skating",
-          "Artistic Skating",
-          "Rhythm/Line Skating",
-          "Roller Derby",
-          "Freestyle Skating",
-          "Ramp Skating",
-          "Distance / Marathon Skating",
-          "Freestyle Skating",
-          "Speed Skating",
-          "Park Skating",
-          "Outdoor / Street Skating",
-          "Aggressive Skating",
-          "Slalom Skating",
-          "Quad Skating",
-          "Inline Hockey",
-          "Street Skating",
-        // "Street Skating",
-        // "Roller Derby",
-        // "Park Skating",
-        // "Artistic Skating",
-        // "Speed Skating"
-       
-        ],
          default: "",
       },
     ],
@@ -172,15 +121,6 @@ const personalizationSchema = new Schema<IPersonalization>(
     // "What is the capacity of attendees at your typical events?"
     typicalEventCapacity: {
       type: String,
-      enum: [
-        "1-10",
-        "11-50",
-        "51-100",
-        "101-500",
-        "500+",
-        "Less than 20", "20-49", "50-199", "200-499", 'More than 500',
-        "",
-      ],
       default: "",
     },
 
@@ -209,7 +149,6 @@ const personalizationSchema = new Schema<IPersonalization>(
     // "Do you have public liability insurance for your events?"
     hasPublicLiabilityInsurance: {
       type: String,
-      enum: ["Yes", "No", ""],
       default: "",
     },
 
@@ -222,7 +161,6 @@ const personalizationSchema = new Schema<IPersonalization>(
     // "Do you have a code of conduct or safety policy for your events?"
     hasCodeOfConduct: {
       type: String,
-      enum: ["Yes", "No", ""],
       default: "",
     },
 
