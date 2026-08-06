@@ -71,11 +71,13 @@ export default {
           email: process.env.SUPER_ADMIN_EMAIL,
           password: process.env.SUPER_ADMIN_PASSWORD,
      },
-          aws: {
+     aws: {
           region: process.env.AWS_REGION,
           bucket: process.env.AWS_BUCKET,
           access_key: process.env.AWS_ACCESS_KEY,
           secret_key: process.env.AWS_SECRET_KEY,
-     }
+     },
+     wix_webhook_secret: process.env.WIX_WEBHOOK_SECRET,
+     revenuecat_secret_key: process.env.REVENUECAT_SECRET_API_KEY,
 };
 

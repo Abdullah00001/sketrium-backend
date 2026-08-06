@@ -18,6 +18,8 @@ import bcrypt from 'bcrypt';
 import { UserRole } from '../user/user.interface';
 import User from '../user/user.model';
 import catchAsync from '../../utils/catchAsync';
+import { PendingWebSubscription } from '../webhook/PendingWebSubscription.model';
+import { webhookService } from '../webhook/webhook.service';
 
 // otpCache: in-memory Map or Redis
 const otpCache = new Map<
@@ -188,6 +190,23 @@ export const verifyEmailregister = async (email: string, code: string) => {
   });
 
   pendingRegistrations.delete(email);
+
+  // 🚀 Resolve Pending Web Subscriptions for this new user
+  try {
+    const pendingSub = await PendingWebSubscription.findOne({ email: email.toLowerCase(), status: 'ACTIVE' });
+    if (pendingSub) {
+      // Re-trigger the webhook logic for this grant
+      await webhookService.handleWixWebhook({
+        email: pendingSub.email,
+        plan_id: pendingSub.plan_id,
+        status: 'PAYMENT_COMPLETED' // forces a grant
+      });
+      // Clear the pending record
+      await PendingWebSubscription.findByIdAndDelete(pendingSub._id);
+    }
+  } catch (err) {
+    console.error('Error resolving pending web subscription for new user:', err);
+  }
 
   try {
     await sendEmail(

@@ -76,6 +76,9 @@ import notFound from './app/middleware/notfound';
 import router from './app/routes';
 import config from './app/config';
 import { Event } from './app/modules/event/event.model';
+import morgan from 'morgan';
+import { requestContextMiddleware } from './app/configs/requestContext.configs';
+import { morganMessageFormat, streamConfig } from './app/configs/morgan.configs';
 
 const app: Application = express();
 
@@ -104,12 +107,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+// Initialize request context and logging
+app.use(requestContextMiddleware);
+app.use(morgan(morganMessageFormat, { stream: streamConfig }));
+
 app.use('/api/v1', router);
-// app.ts এ add করো — debug করার জন্য
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`)
-  next()
-})
 
 app.get('/', (req: Request, res: Response) => {
 

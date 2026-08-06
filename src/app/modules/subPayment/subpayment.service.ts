@@ -33,7 +33,7 @@ const handleRevenueCatWebhook = async (payload: any) => {
       'subscription.expiresAt': expiresAt,
       'subscription.startsAt': startsAt,
       'subscription.revenueCatPackageName': event.product_id,
-      'subscription.revenueCatEntitlementId': event.entitlement_id,
+      'subscription.revenueCatEntitlementId': event.entitlement_ids ? event.entitlement_ids[0] : event.entitlement_id,
       'subscription.revenueCatOriginalAppUserId': event.original_app_user_id,
     });
   } else if (type === 'EXPIRATION') {

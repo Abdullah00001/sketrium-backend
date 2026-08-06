@@ -25,6 +25,7 @@ import { SettingsRoutes } from '../modules/Settings/Settings.routes';
 import { ContactRoutes } from '../modules/Contact/contact.routes';
 import { WithdrawalRoutes } from '../modules/withdrawal/withdrawal.routes';
 import { FAQRoutes } from '../modules/FAQ/faq.route';
+import { webhookRoutes } from '../modules/webhook/webhook.routes';
 
 // import { PromoCodeRoutes } from '../modules/PromoCode/promocode.routes';
 
@@ -142,6 +143,10 @@ const moduleRoutes = [
   {
     path: '/faq',
     route: FAQRoutes,
+  },
+  {
+    path: '/webhooks',
+    route: webhookRoutes,
   },
 
 ];
