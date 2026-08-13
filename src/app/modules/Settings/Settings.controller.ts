@@ -5,23 +5,14 @@ import httpStatus from "http-status";
 import { SettingsService } from "./Settings.service";
 
 
-const validRoles = ["MARCHANT", "KAATEDJ", "ORGANIZER","USER"];
-const validTypes = ["privacy_policy", "terms_conditions", "about_us", "mission_statement"];
+const validTypes = ["privacy_policy", "terms_conditions", "about_us", "mission_statement", "disclaimer", "community_guidelines"];
 
-// GET /api/v1/settings?role=MARCHANT
-// GET /api/v1/settings?role=MARCHANT&type=privacy_policy
+// GET /api/v1/settings
+// GET /api/v1/settings?type=privacy_policy
 const getSettings = catchAsync(async (req: Request, res: Response) => {
-  const role = req.query.role as string;
   const type = req.query.type as string;
 
-  if (!role || !validRoles.includes(role)) {
-    return res.status(httpStatus.BAD_REQUEST).json({
-      success: false,
-      message: `role required. Valid: ${validRoles.join(", ")}`,
-    });
-  }
-
-  const result = await SettingsService.getSettings(role, type);
+  const result = await SettingsService.getSettings(type);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -34,14 +25,7 @@ const getSettings = catchAsync(async (req: Request, res: Response) => {
 // PATCH /api/v1/settings — Admin only
 const upsertSettings = catchAsync(async (req: Request, res: Response) => {
   const adminId = req.user._id;
-  const { role, type, content } = req.body;
-
-  if (!validRoles.includes(role)) {
-    return res.status(httpStatus.BAD_REQUEST).json({
-      success: false,
-      message: `Invalid role. Valid: ${validRoles.join(", ")}`,
-    });
-  }
+  const { type, content } = req.body;
 
   if (!validTypes.includes(type)) {
     return res.status(httpStatus.BAD_REQUEST).json({
@@ -50,7 +34,7 @@ const upsertSettings = catchAsync(async (req: Request, res: Response) => {
     });
   }
 
-  const result = await SettingsService.upsertSettings(adminId, role, type, content);
+  const result = await SettingsService.upsertSettings(adminId, type, content);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,

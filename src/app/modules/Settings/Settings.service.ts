@@ -1,23 +1,23 @@
 
 
-// ── Get Settings by role and type ─────────────────────────────────────────────
+// ── Get Settings by type ─────────────────────────────────────────────
 
 import { Settings } from "./Settings.model";
 
-// GET /api/v1/settings?role=MARCHANT&type=privacy_policy
-const getSettings = async (role: string, type?: string) => {
+// GET /api/v1/settings?type=privacy_policy
+const getSettings = async (type?: string) => {
   if (type) {
-    const settings = await Settings.findOne({ role, type });
-    return settings || { role, type, content: "" };
+    const settings = await Settings.findOne({ type });
+    return settings || { type, content: "" };
   }
 
 
-  const types = ["privacy_policy", "terms_conditions", "about_us", "mission_statement"];
-  const allSettings = await Settings.find({ role });
+  const types = ["privacy_policy", "terms_conditions", "about_us", "mission_statement", "disclaimer", "community_guidelines"];
+  const allSettings = await Settings.find();
 
   return types.map((t) => {
     const found = allSettings.find((s) => s.type === t);
-    return { role, type: t, content: found?.content || "" };
+    return { type: t, content: found?.content || "" };
   });
 };
 
@@ -25,12 +25,11 @@ const getSettings = async (role: string, type?: string) => {
 // PATCH /api/v1/settings
 const upsertSettings = async (
   adminId: string,
-  role: string,
   type: string,
   content: string
 ) => {
   const settings = await Settings.findOneAndUpdate(
-    { role, type },
+    { type },
     { $set: { content, updatedBy: adminId } },
     { new: true, upsert: true }
   );
