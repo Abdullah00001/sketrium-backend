@@ -22,5 +22,4 @@ jobs:
 
     - name: Deploy to VPS
       run: |
-        rsync -avz --exclude '.git' --exclude 'node_modules' ./ ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }}:/home/developer/sketrium-backend/
-        ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "cd /home/developer/sketrium-backend && npm install && npm run build && pm2 restart sketrium-backend"
+        ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "cd /home/developer/sketrium-backend && git pull origin main && npm install && npm run build && pm2 restart sketrium-backend"
