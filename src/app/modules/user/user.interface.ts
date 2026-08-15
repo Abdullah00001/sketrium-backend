@@ -17,7 +17,7 @@ export enum status {
 //   Male = 'Male',
 //   Female = 'Female',
 // }
- interface Verification {
+interface Verification {
   otp: string | number;
   expiresAt: Date;
   status: boolean;
@@ -28,7 +28,7 @@ interface image {
 }
 
 export interface ILocation {
-  type: "Point";
+  type: 'Point';
   coordinates: [longitude: number, latitude: number]; // [lng, lat]
 }
 
@@ -51,7 +51,8 @@ export interface TUser {
   isDeleted: boolean;
   verification: Verification;
   language: string;
-    coverImage?: {       // 👈 এটা add koro
+  coverImage?: {
+    // 👈 এটা add koro
     id: string;
     url: string;
   };
@@ -74,7 +75,6 @@ export interface TUser {
     revenueCatOriginalAppUserId?: string;
   };
 }
-
 
 export interface UserModel extends Model<TUser> {
   isUserExist(email: string): Promise<TUser>;

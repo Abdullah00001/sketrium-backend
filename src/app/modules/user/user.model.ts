@@ -30,42 +30,37 @@ const imageSchema = new Schema({
   },
   url: {
     type: String,
-    default: "",
+    default: '',
     required: true,
   },
-default: {},
+  default: {},
 });
 // Define the schema for the User model
 const UserSchema = new Schema<TUser, UserModel>(
   {
     email: {
       type: String,
-    //   unique: true,
-     required: true,
-  
+      //   unique: true,
+      required: true,
     },
     image: imageSchema,
     fullName: {
       type: String,
       required: true,
-  
     },
     password: {
       type: String,
       select: false,
-
     },
     country: {
       type: String,
       // required: function(this: TUser) { return this.isVerified === true; },
       sparse: true, // 🔥 important
       // import admin from './../Dashboard/notifications/Firebase ';
-
     },
 
     phoneNumber: {
       type: String,
-    
     },
     needsPasswordChange: {
       type: Boolean,
@@ -74,10 +69,10 @@ const UserSchema = new Schema<TUser, UserModel>(
     passwordChangedAt: {
       type: Date,
     },
-    
+
     about: {
       type: String,
-      default: "",
+      default: '',
     },
 
     accountType: {
@@ -85,38 +80,38 @@ const UserSchema = new Schema<TUser, UserModel>(
       enum: ['emailvarifi', 'google', 'facebook', 'linkedin', 'apple'],
       default: 'emailvarifi',
     },
- 
+
     role: {
       type: String,
       enum: Object.values(UserRole),
       required: true,
-      // default: UserRole.agencies,  
+      // default: UserRole.agencies,
     },
-        howDidYouHear: {
-        type: String,
-        default: "",
-      },
+    howDidYouHear: {
+      type: String,
+      default: '',
+    },
 
-      subscribeToEmails: {
-        type: Boolean,
-        default: false,
-      },
+    subscribeToEmails: {
+      type: Boolean,
+      default: false,
+    },
 
-      termsAccepted: {
-        type: Boolean,
-        default: false,
-      },
-      djname: { type: String, default: "" },
-      
-      adminapproval: {
-        type: String,
-        enum: ['pending', 'approved', 'rejected'],
-        default: 'pending',
-      },
-      isPremium: {
-        type: Boolean,
-        default: false,
-      },
+    termsAccepted: {
+      type: Boolean,
+      default: false,
+    },
+    djname: { type: String, default: '' },
+
+    adminapproval: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending',
+    },
+    isPremium: {
+      type: Boolean,
+      default: false,
+    },
 
     // subscription: {
     //   plan: {
@@ -131,30 +126,27 @@ const UserSchema = new Schema<TUser, UserModel>(
     //      default: 'none',
     //   },
     // },
-   
 
-  subscription: {
-    startsAt: Date,
-    expiresAt: Date,
-    status: {
-      type: String,
-      enum: ['active', 'trialing', 'expired', 'cancelled', 'none'],
-      default: 'none',
+    subscription: {
+      startsAt: Date,
+      expiresAt: Date,
+      status: {
+        type: String,
+        enum: ['active', 'trialing', 'expired', 'cancelled', 'none'],
+        default: 'none',
+      },
+      revenueCatPackageName: { type: String },
+      revenueCatEntitlementId: { type: String },
+      revenueCatOriginalAppUserId: { type: String },
     },
-    revenueCatPackageName: { type: String },
-    revenueCatEntitlementId: { type: String },
-    revenueCatOriginalAppUserId: { type: String },
-  },
 
-
-   coverImage: {       
+    coverImage: {
       type: imageSchema,
       // required: false,
-      default:null, // 👈 এটা add koro
+      default: null, // 👈 এটা add koro
     },
 
-
-   fcmToken: { type: String, default: "" },
+    fcmToken: { type: String, default: '' },
     isActive: {
       type: Boolean,
       default: true,
@@ -171,26 +163,22 @@ const UserSchema = new Schema<TUser, UserModel>(
       type: VerificationSchema,
       required: false,
     },
- 
 
-      location: {
-         type: {
-           type: String,
-          enum: ['Point'],
+    location: {
+      type: {
+        type: String,
+        enum: ['Point'],
         // default: 'Point'
-         },
-         coordinates: {
-          type: [Number],
-        
-        },
       },
+      coordinates: {
+        type: [Number],
+      },
+    },
   },
   {
     timestamps: true, // Automatically adds createdAt and updatedAt fields
   },
 );
-
-
 
 //👉 Password change না হলে hash করবে না
 
@@ -203,12 +191,12 @@ const UserSchema = new Schema<TUser, UserModel>(
 //   next();
 // });
 
-UserSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
+UserSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
 
   this.password = await bcrypt.hash(
     this.password,
-    Number(config.bcrypt_salt_rounds)
+    Number(config.bcrypt_salt_rounds),
   );
 
   next();
@@ -233,7 +221,6 @@ UserSchema.statics.isUserExistByNumber = async function (
 ) {
   return this.findOne({ countryCode, phoneNumber }).select('+password');
 };
-
 
 UserSchema.statics.IsUserExistbyId = async function (
   id: string,

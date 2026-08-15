@@ -35,14 +35,15 @@ const getme = async (id: string) => {
     throw new AppError(httpStatus.NOT_FOUND, 'User not found');
   }
 
+  const socialLinks = await SocialLink.findOne({ user: result._id });
+  const personalization = await Personalization.findOne({ user: result._id });
+  const balance = await BalanceModel.findOne({ userId: result._id });
+
   return {
-    email: result.email,
-    fullName: result.fullName,
-    country: result.country,
-    phoneNumber: result.phoneNumber,
-    howDidYouHear: result.howDidYouHear,
-    categore: result.categore,
-    image: result.image ?? {},
+    ...result.toObject(),
+    socialLinks,
+    personalization,
+    balance,
   };
 };
 
@@ -83,8 +84,66 @@ const getAllUsers = async (query: Record<string, any>) => {
     .sort()
     .fields();
 
-  const data = await usersQuery.modelQuery;
+  const users = await usersQuery.modelQuery;
   const meta = await usersQuery.countTotal();
+
+  const data = await Promise.all(
+    users.map(async (user: any) => {
+      const followersCount = await Follow.countDocuments({
+        following: user._id,
+      });
+      const followingCount = await Follow.countDocuments({
+        follower: user._id,
+      });
+
+      const ratingResult = await Review.aggregate([
+        { $match: { organizer: user._id, isDeleted: { $ne: true } } },
+        {
+          $group: {
+            _id: null,
+            avgRating: { $avg: '$rating' },
+            totalReviews: { $sum: 1 },
+          },
+        },
+      ]);
+      const avgRating = ratingResult[0]?.avgRating
+        ? parseFloat(ratingResult[0].avgRating.toFixed(1))
+        : 0;
+      const totalReviews = ratingResult[0]?.totalReviews || 0;
+
+      const eventCount = await Event.countDocuments({
+        host: user._id,
+        isDeleted: false,
+      });
+      const productCount = await Product.countDocuments({
+        host: user._id,
+        isDeleted: false,
+      });
+
+      const socialLinks = await SocialLink.findOne({ user: user._id }).select(
+        '-__v -createdAt -updatedAt -user',
+      );
+      const personalization = await Personalization.findOne({
+        user: user._id,
+      }).select('-__v -createdAt -updatedAt -user');
+      const balance = await BalanceModel.findOne({ userId: user._id }).select(
+        'currentBalance stripeAccountId stripeOnboarded',
+      );
+
+      return {
+        ...user.toObject(),
+        followersCount,
+        followingCount,
+        avgRating,
+        totalReviews,
+        eventCount,
+        productCount,
+        socialLinks: socialLinks || null,
+        personalization: personalization || null,
+        balance: balance || null,
+      };
+    }),
+  );
 
   return { data, meta };
 };
@@ -96,7 +155,55 @@ const getSingleUser = async (id: string) => {
     throw new AppError(httpStatus.NOT_FOUND, 'User not found');
   }
 
-  return result;
+  const followersCount = await Follow.countDocuments({ following: result._id });
+  const followingCount = await Follow.countDocuments({ follower: result._id });
+
+  const ratingResult = await Review.aggregate([
+    { $match: { organizer: result._id, isDeleted: { $ne: true } } },
+    {
+      $group: {
+        _id: null,
+        avgRating: { $avg: '$rating' },
+        totalReviews: { $sum: 1 },
+      },
+    },
+  ]);
+  const avgRating = ratingResult[0]?.avgRating
+    ? parseFloat(ratingResult[0].avgRating.toFixed(1))
+    : 0;
+  const totalReviews = ratingResult[0]?.totalReviews || 0;
+
+  const eventCount = await Event.countDocuments({
+    host: result._id,
+    isDeleted: false,
+  });
+  const productCount = await Product.countDocuments({
+    host: result._id,
+    isDeleted: false,
+  });
+
+  const socialLinks = await SocialLink.findOne({ user: result._id }).select(
+    '-__v -createdAt -updatedAt -user',
+  );
+  const personalization = await Personalization.findOne({
+    user: result._id,
+  }).select('-__v -createdAt -updatedAt -user');
+  const balance = await BalanceModel.findOne({ userId: result._id }).select(
+    'currentBalance stripeAccountId stripeOnboarded',
+  );
+
+  return {
+    ...result.toObject(),
+    followersCount,
+    followingCount,
+    avgRating,
+    totalReviews,
+    eventCount,
+    productCount,
+    socialLinks: socialLinks || null,
+    personalization: personalization || null,
+    balance: balance || null,
+  };
 };
 
 const deleteAccount = async (id: string, password: string) => {
@@ -133,55 +240,54 @@ const deleteUser = async (id: string) => {
     profileReviews,
     productReviewGroups,
     eventReviewGroups,
-  ] =
-    await Promise.all([
-      Product.find({ host: user._id }).select('_id'),
-      Event.find({ host: user._id }).select('_id'),
-      BalanceModel.findOne({ userId: user._id }).select('_id'),
-      Review.find({
-        $or: [{ organizer: user._id }, { reviewer: user._id }],
-      }).select('_id'),
-      Product.aggregate<{ reviewIds: unknown[] }>([
-        { $match: { 'reviews.user': user._id } },
-        {
-          $project: {
-            reviewIds: {
-              $map: {
-                input: {
-                  $filter: {
-                    input: '$reviews',
-                    as: 'review',
-                    cond: { $eq: ['$$review.user', user._id] },
-                  },
+  ] = await Promise.all([
+    Product.find({ host: user._id }).select('_id'),
+    Event.find({ host: user._id }).select('_id'),
+    BalanceModel.findOne({ userId: user._id }).select('_id'),
+    Review.find({
+      $or: [{ organizer: user._id }, { reviewer: user._id }],
+    }).select('_id'),
+    Product.aggregate<{ reviewIds: unknown[] }>([
+      { $match: { 'reviews.user': user._id } },
+      {
+        $project: {
+          reviewIds: {
+            $map: {
+              input: {
+                $filter: {
+                  input: '$reviews',
+                  as: 'review',
+                  cond: { $eq: ['$$review.user', user._id] },
                 },
-                as: 'review',
-                in: '$$review._id',
               },
+              as: 'review',
+              in: '$$review._id',
             },
           },
         },
-      ]),
-      Event.aggregate<{ reviewIds: unknown[] }>([
-        { $match: { 'reviews.user': user._id } },
-        {
-          $project: {
-            reviewIds: {
-              $map: {
-                input: {
-                  $filter: {
-                    input: '$reviews',
-                    as: 'review',
-                    cond: { $eq: ['$$review.user', user._id] },
-                  },
+      },
+    ]),
+    Event.aggregate<{ reviewIds: unknown[] }>([
+      { $match: { 'reviews.user': user._id } },
+      {
+        $project: {
+          reviewIds: {
+            $map: {
+              input: {
+                $filter: {
+                  input: '$reviews',
+                  as: 'review',
+                  cond: { $eq: ['$$review.user', user._id] },
                 },
-                as: 'review',
-                in: '$$review._id',
               },
+              as: 'review',
+              in: '$$review._id',
             },
           },
         },
-      ]),
-    ]);
+      },
+    ]),
+  ]);
 
   const productIds = ownedProducts.map(product => product._id);
   const eventIds = ownedEvents.map(event => event._id);
@@ -224,9 +330,7 @@ const deleteUser = async (id: string) => {
       $or: [
         { reportedBy: user._id },
         ...(eventIds.length ? [{ event: { $in: eventIds } }] : []),
-        ...(eventReviewIds.length
-          ? [{ review: { $in: eventReviewIds } }]
-          : []),
+        ...(eventReviewIds.length ? [{ review: { $in: eventReviewIds } }] : []),
       ],
     }),
     PromoCode.deleteMany({ createdBy: user._id }),
