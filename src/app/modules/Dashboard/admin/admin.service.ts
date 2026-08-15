@@ -9,6 +9,7 @@ import { updatePastEvents } from '../../../utils/updatePastEvents';
 import { ro } from 'date-fns/locale/ro';
 import { Personalization } from '../../Personalizationuser/Personalization.model';
 import SocialLink from '../../sociallink/soscial.model';
+import PaymentHistory from '../../subPayment/subpayment.model';
 
 const updateAdminProfile = async (id: string, payload: Record<string, any>) => {
   console.log('Update id:', id);
@@ -337,18 +338,65 @@ const getAdminDashboard = async (
     },
   ]);
 
-  const combinedEarnings = [...ticketEarningRaw, ...orderEarningRaw];
-
-  const earningGrouped = combinedEarnings.reduce((acc: any, item) => {
+  const eventGrouped = ticketEarningRaw.reduce((acc: any, item) => {
     const currency = item.currency || 'USD';
-
     if (!acc[currency]) acc[currency] = 0;
-
     acc[currency] += item.amount;
-
     return acc;
   }, {});
 
+  const eventEarning = Object.keys(eventGrouped).map(currency => ({
+    currency,
+    amount: eventGrouped[currency],
+  }));
+
+  const productGrouped = orderEarningRaw.reduce((acc: any, item) => {
+    const currency = item.currency || 'USD';
+    if (!acc[currency]) acc[currency] = 0;
+    acc[currency] += item.amount;
+    return acc;
+  }, {});
+
+  const productEarning = Object.keys(productGrouped).map(currency => ({
+    currency,
+    amount: productGrouped[currency],
+  }));
+
+  const subscriptionEarningRaw = await PaymentHistory.aggregate([
+    {
+      $match: {
+        status: { $in: ['succeeded', 'active'] },
+        isDeleted: false,
+      },
+    },
+    {
+      $project: {
+        currency: { $toUpper: { $ifNull: ['$currency', 'USD'] } },
+        amount: '$amount',
+      },
+    },
+  ]);
+
+  const subscriptionGrouped = subscriptionEarningRaw.reduce((acc: any, item) => {
+    const currency = item.currency || 'USD';
+    if (!acc[currency]) acc[currency] = 0;
+    acc[currency] += item.amount / 100; // Assuming amounts in PaymentHistory are in cents
+    return acc;
+  }, {});
+
+  const subscriptionEarning = Object.keys(subscriptionGrouped).map(currency => ({
+    currency,
+    amount: subscriptionGrouped[currency],
+  }));
+
+  const combinedEarnings = [...ticketEarningRaw, ...orderEarningRaw, ...subscriptionEarningRaw.map(x => ({ ...x, amount: x.amount / 100 }))];
+  const earningGrouped = combinedEarnings.reduce((acc: any, item) => {
+    const currency = item.currency || 'USD';
+    if (!acc[currency]) acc[currency] = 0;
+    acc[currency] += item.amount;
+    return acc;
+  }, {});
+  
   const totalEarning = Object.keys(earningGrouped).map(currency => ({
     currency,
     amount: earningGrouped[currency],
@@ -469,6 +517,9 @@ const getAdminDashboard = async (
       activeUsers,
       ongoingEvents,
       totalEarning,
+      eventEarning,
+      subscriptionEarning,
+      productEarning,
     },
 
     analytics: {
