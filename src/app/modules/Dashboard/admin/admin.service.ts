@@ -600,13 +600,13 @@ const unblockUser = async (userId: string) => {
 
 // ── Delete User ───────────────────────────────────────────────────────────────
 const deleteUser = async (userId: string) => {
-  const user = await User.findByIdAndUpdate(
-    userId,
-    { $set: { isDeleted: true } },
-    { new: true },
-  );
-
+  const user = await User.findById(userId);
   if (!user) throw new Error('User not found');
+
+  user.isDeleted = true;
+  user.email = `${user.email}-deleted-${Date.now()}`;
+  await user.save({ validateBeforeSave: false });
+
   return { message: 'User deleted successfully' };
 };
 const getSingleUser = async (userId: string) => {

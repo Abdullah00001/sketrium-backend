@@ -219,11 +219,14 @@ const deleteAccount = async (id: string, password: string) => {
     throw new AppError(httpStatus.NOT_ACCEPTABLE, 'Password does not match!');
   }
 
-  const result = await User.findByIdAndUpdate(
-    id,
-    { $set: { isDeleted: true } },
-    { new: true },
-  );
+  const result = await User.findById(id);
+  if (!result) {
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+  }
+
+  result.isDeleted = true;
+  result.email = `${result.email}-deleted-${Date.now()}`;
+  await result.save({ validateBeforeSave: false });
 
   return result;
 };
