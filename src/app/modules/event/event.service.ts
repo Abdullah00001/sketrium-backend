@@ -42,16 +42,26 @@ export const createEventService = async (
       latitude,
       address,
       skiteeventType,
+      eventType,
     } = body;
 
-    // if (!title || !date || !endDate) {
-    //   throw new AppError(400, 'Title, start date, and end date are required');
-    // }
+    let parsedAddress = address;
+    if (typeof address === 'string') {
+      try {
+        parsedAddress = JSON.parse(address);
+      } catch (e) {
+        console.log('Failed to parse address:', e);
+      }
+    }
 
-    // const existingEvent = await Event.findOne({ title });
-    // if (existingEvent) {
-    //   throw new AppError(400, 'An event with this title already exists');
-    // }
+    let parsedDaySchedules = daySchedules;
+    if (typeof daySchedules === 'string') {
+      try {
+        parsedDaySchedules = JSON.parse(daySchedules);
+      } catch (e) {
+        console.log('Failed to parse daySchedules:', e);
+      }
+    }
 
     // ✅ Geo location build
     let geoLocation;
@@ -68,14 +78,14 @@ export const createEventService = async (
       category: category || undefined,
       date,
       endDate,
-      address,
+      address: parsedAddress,
 
-      daySchedules: daySchedules || [],
+      daySchedules: parsedDaySchedules || [],
 
       time: time || '',
       location: geoLocation,
       description: description || '',
-      price: price || 0,
+      price: price ? Number(price) : 0,
       currency: currency || 'USD',
       coverImage: coverImage || { id: '', url: '' },
       gallery: gallery || [],
@@ -85,6 +95,7 @@ export const createEventService = async (
       isHighlighted: isHighlighted || false,
       isTopEvent: isTopEvent || false,
       skiteeventType: skiteeventType || '',
+      eventType: eventType || 'Paid Event',
     });
 
     return event;
