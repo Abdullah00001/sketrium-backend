@@ -10,6 +10,36 @@ import { Cart } from './addtotocard.model';
 //   return cart || { user: userId, items: [] };
 // };
 
+// Helper to format cart response with totals
+const formatCartResponse = (cart: any) => {
+  let subtotal = 0;
+  let shippingFee = 0;
+  let totalQuantity = 0;
+
+  for (const item of cart.items as any[]) {
+    const product = item.product;
+    totalQuantity += item.quantity;
+    
+    if (!product || !product.price) continue; // Skip if not populated or no price
+
+    const unitPrice =
+      product.discountPrice > 0 ? product.discountPrice : product.price;
+
+    subtotal += unitPrice * item.quantity;
+    shippingFee += product.shippingCost || 0;
+  }
+
+  const total = subtotal + shippingFee;
+
+  return {
+    ...cart.toObject ? cart.toObject() : cart,
+    subtotal,
+    shippingFee,
+    total,
+    totalQuantity,
+  };
+};
+
 const getCart = async (userId: string) => {
   const cart = await Cart.findOne({ user: userId }).populate(
     'items.product',
@@ -23,32 +53,11 @@ const getCart = async (userId: string) => {
       subtotal: 0,
       shippingFee: 0,
       total: 0,
+      totalQuantity: 0,
     };
   }
 
-  let subtotal = 0;
-  let shippingFee = 0;
-
-  for (const item of cart.items as any[]) {
-    const product = item.product;
-    if (!product) continue;
-
-    // ✅ discountPrice > 0 হলে discountPrice, নাহলে original price
-    const unitPrice =
-      product.discountPrice > 0 ? product.discountPrice : product.price;
-
-    subtotal += unitPrice * item.quantity;
-    shippingFee += product.shippingCost || 0;
-  }
-
-  const total = subtotal + shippingFee;
-
-  return {
-    ...cart.toObject(),
-    subtotal, // $45
-    shippingFee, // $80
-    total, // $125
-  };
+  return formatCartResponse(cart);
 };
 
 const addToCart = async (
@@ -92,7 +101,8 @@ const addToCart = async (
   }
 
   await cart.save();
-  return cart.populate('items.product', 'name price images discount');
+  await cart.populate('items.product', 'name price images discountPrice currency shippingCost');
+  return formatCartResponse(cart);
 };
 
 const updateCartItem = async (
@@ -126,7 +136,8 @@ const updateCartItem = async (
   }
 
   await cart.save();
-  return cart.populate('items.product', 'name price images discount');
+  await cart.populate('items.product', 'name price images discountPrice currency shippingCost');
+  return formatCartResponse(cart);
 };
 
 const removeFromCart = async (userId: string, productId: string) => {
@@ -138,15 +149,23 @@ const removeFromCart = async (userId: string, productId: string) => {
   );
 
   await cart.save();
-  return cart.populate('items.product', 'name price images discount');
+  await cart.populate('items.product', 'name price images discountPrice currency shippingCost');
+  return formatCartResponse(cart);
 };
 
 const clearCart = async (userId: string) => {
-  return await Cart.findOneAndUpdate(
+  const cart = await Cart.findOneAndUpdate(
     { user: userId },
     { items: [] },
     { new: true },
   );
+  return {
+    ...(cart ? cart.toObject() : {}),
+    subtotal: 0,
+    shippingFee: 0,
+    total: 0,
+    totalQuantity: 0,
+  };
 };
 
 export const cartService = {
