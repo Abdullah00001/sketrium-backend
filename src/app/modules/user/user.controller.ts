@@ -58,8 +58,17 @@ const updateProfile = catchAsync(async (req: Request, res: Response) => {
     isAdmin && userIdToUpdate.toString() === req.user.id.toString();
 
   // Build update data
+  let parsedBody = { ...req.body };
+  if (req.body.data && typeof req.body.data === 'string') {
+    try {
+      parsedBody = JSON.parse(req.body.data);
+    } catch (err) {
+      console.error('Failed to parse req.body.data:', err);
+    }
+  }
+
   const updateData: Record<string, any> = {
-    ...req.body,
+    ...parsedBody,
     ...(image && { image }),
   };
 
