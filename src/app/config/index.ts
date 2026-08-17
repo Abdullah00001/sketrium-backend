@@ -46,6 +46,7 @@ export default {
           port: process.env.EMAIL_PORT,
           nodemailer_host_email: process.env.EMAIL_USER,
           nodemailer_host_pass: process.env.EMAIL_PASS,
+          brevo_api_key: process.env.BREVO_API_KEY,
      },
      express_sessoin: process.env.EXPRESS_SESSION_SECRET_KEY,
      social: {

@@ -13,7 +13,7 @@ import {
 import httpStatus from 'http-status';
 import { generateOtp } from '../../utils/otpGenerator';
 import moment from 'moment';
-import { sendEmail } from '../../utils/mailSender';
+import { sendEmail, addContactToBrevo } from '../../utils/mailSender';
 import bcrypt from 'bcrypt';
 import { UserRole } from '../user/user.interface';
 import User from '../user/user.model';
@@ -188,6 +188,11 @@ export const verifyEmailregister = async (email: string, code: string) => {
     djname,
     isVerified: true,
   });
+
+  if (subscribeToEmails) {
+    // Note: addContactToBrevo is imported from mailSender
+    await addContactToBrevo(email, fullName);
+  }
 
   pendingRegistrations.delete(email);
 
