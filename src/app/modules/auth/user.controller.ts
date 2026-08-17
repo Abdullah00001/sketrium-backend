@@ -375,11 +375,15 @@ const linkedInLogin = catchAsync(async (req: Request, res: Response) => {
         isVerified: true,
         accountType: 'linkedin', // important
         role: role,
+        fcmToken: req.body.fcmToken || '',
         image: {
           id: 'linkedin', // any default id
           url: 'https://i.ibb.co/z5YHLV9/profile.png', // LinkedIn থেকে profile picture পাওয়া একটু tricky, তাই default দিলাম
         },
       });
+    } else if (req.body.fcmToken) {
+      user.fcmToken = req.body.fcmToken;
+      await user.save({ validateBeforeSave: false });
     }
 
     // 4. Generate tokens
@@ -412,7 +416,7 @@ const linkedInLogin = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const appleLogin = catchAsync(async (req: Request, res: Response) => {
-  const { identityToken, role } = req.body;
+  const { identityToken, role, fcmToken } = req.body;
 
   if (!identityToken) {
     throw new AppError(
@@ -455,11 +459,15 @@ export const appleLogin = catchAsync(async (req: Request, res: Response) => {
       fullName,
       accountType: 'apple',
       isVerified: true,
+      fcmToken: fcmToken || '',
       image: {
         id: 'apple',
         url: 'https://i.ibb.co/z5YHLV9/profile.png',
       },
     });
+  } else if (fcmToken) {
+    user.fcmToken = fcmToken;
+    await user.save({ validateBeforeSave: false });
   }
 
   const accessTokenJwt = jwt.sign(
