@@ -72,6 +72,14 @@ export const createEventService = async (
       };
     }
 
+    // Normalize eventType to match Mongoose enum
+    let normalizedEventType = eventType || 'Paid Event';
+    if (normalizedEventType.toLowerCase() === 'paid') {
+      normalizedEventType = 'Paid Event';
+    } else if (normalizedEventType.toLowerCase() === 'free') {
+      normalizedEventType = 'Free Event';
+    }
+
     // ✅ ডাটাবেজে ইভেন্ট তৈরি
     const event = await Event.create({
       title,
@@ -95,7 +103,7 @@ export const createEventService = async (
       isHighlighted: isHighlighted || false,
       isTopEvent: isTopEvent || false,
       skiteeventType: skiteeventType || '',
-      eventType: eventType || 'Paid Event',
+      eventType: normalizedEventType,
     });
 
     return event;
@@ -468,6 +476,7 @@ export const updateEventService = async (
     latitude,
     currency,
     skiteeventType,
+    eventType,
   } = req.body;
 
   // ✅ form-data থেকে daySchedules স্ট্রিং আকারে আসলে সেটাকে JSON Array তে রূপান্তর করা
@@ -489,6 +498,15 @@ export const updateEventService = async (
       type: 'Point',
       coordinates: [parseFloat(longitude), parseFloat(latitude)],
     };
+  }
+
+  let normalizedEventType = eventType;
+  if (normalizedEventType) {
+    if (normalizedEventType.toLowerCase() === 'paid') {
+      normalizedEventType = 'Paid Event';
+    } else if (normalizedEventType.toLowerCase() === 'free') {
+      normalizedEventType = 'Free Event';
+    }
   }
 
   const updateData: any = {
@@ -515,6 +533,7 @@ export const updateEventService = async (
 
     ...(gallery && gallery.length > 0 && { gallery }),
     ...(skiteeventType !== undefined && { skiteeventType }),
+    ...(normalizedEventType !== undefined && { eventType: normalizedEventType }),
     ...(endDate !== undefined && { endDate }),
     ...(currency !== undefined && { currency }),
     ...(daySchedules !== undefined && { daySchedules }),
