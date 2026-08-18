@@ -206,17 +206,22 @@ const getSingleUser = async (id: string) => {
   };
 };
 
-const deleteAccount = async (id: string, password: string) => {
+const deleteAccount = async (id: string, password?: string) => {
   const user = await User.IsUserExistbyId(id);
 
   if (!user) {
     throw new AppError(httpStatus.NOT_FOUND, 'User not found');
   }
 
-  const isPasswordMatched = await bcrypt.compare(password, user.password);
+  if (user.password) {
+    if (!password) {
+      throw new AppError(httpStatus.BAD_REQUEST, 'Password is required to delete this account.');
+    }
+    const isPasswordMatched = await bcrypt.compare(password, user.password);
 
-  if (!isPasswordMatched) {
-    throw new AppError(httpStatus.NOT_ACCEPTABLE, 'Password does not match!');
+    if (!isPasswordMatched) {
+      throw new AppError(httpStatus.NOT_ACCEPTABLE, 'Password does not match!');
+    }
   }
 
   const result = await User.findById(id);

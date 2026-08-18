@@ -141,11 +141,13 @@ router.get(
   userControllers.getAllUsers,
 );
 
-router.delete('/:id', auth(USER_ROLE.admin), userControllers.deleteUser);
 router.delete(
   '/delete-account',
   auth(USER_ROLE.USER, USER_ROLE.MARCHANT),
   validateRequest(authValidation.deleteAccountZodSchema),
   userControllers.deleteAccount,
 );
+
+router.delete('/:id', auth(USER_ROLE.admin), userControllers.deleteUser);
+
 export const userRoutes = router;

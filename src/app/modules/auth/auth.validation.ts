@@ -192,7 +192,7 @@ export const forgotPasswordZodSchema = z.object({
 
 export const deleteAccountZodSchema = z.object({
   body: z.object({
-    password: z.string().nonempty('Password is required'),
+    password: z.string().optional(),
   }),
 });
 
