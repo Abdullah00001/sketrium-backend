@@ -13,13 +13,15 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Set up SSH
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_ed25519
-        chmod 600 ~/.ssh/id_ed25519
-        ssh-keyscan -H "${{ secrets.VPS_IP }}" >> ~/.ssh/known_hosts
-
     - name: Deploy to VPS
-      run: |
-        ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "cd /home/developer/sketrium-backend && git pull origin main && npm install && npm run build && pm2 restart sketrium-backend"
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.VPS_IP }}
+        username: ${{ secrets.VPS_USER }}
+        password: ${{ secrets.VPS_PASSWORD }}
+        script: |
+          cd /home/developer/sketrium-backend
+          git pull origin main
+          npm install
+          npm run build
+          pm2 restart sketrium-backend
