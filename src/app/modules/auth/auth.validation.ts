@@ -85,7 +85,7 @@ import { UserRole } from '../user/user.interface';
 
 export const requestOtpZodSchema = z.object({
   body: z.object({
-    email: z.string().nonempty('Email is required').email('Must be a valid email'),
+    email: z.string().nonempty('Email is required').email('Must be a valid email').toLowerCase(),
   }),
 });
 
@@ -96,7 +96,7 @@ export const registerZodSchema = z.object({
   body: z.object({
     fullName: z.string().min(2, "Full name is required"),
 
-    email: z.string().email("Invalid email format"),
+    email: z.string().email("Invalid email format").toLowerCase(),
 
     password: z.string().min(6, "Password must be at least 6 characters"),
 
@@ -128,7 +128,8 @@ export const verifyEmailZodSchema = z.object({
     email: z
       .string()
       .nonempty('Email is required')
-      .email('Must be a valid email'),
+      .email('Must be a valid email')
+      .toLowerCase(),
 
     otp: z
       .number()
@@ -140,7 +141,7 @@ export const verifyEmailZodSchema = z.object({
 
 export const verifyEmailZodSchemar = z.object({
   body: z.object({
-    email: z.string().nonempty('Email is required').email('Must be a valid email'),
+    email: z.string().nonempty('Email is required').email('Must be a valid email').toLowerCase(),
     otp: z.number().refine(val => val !== undefined && val !== null, { message: 'OTP is required' }),
   }),
 });
@@ -150,6 +151,7 @@ export const loginZodSchema = z.object({
     email: z
       .string()
       .trim()
+      .toLowerCase()
       .min(1, "Email is required")
       .email("Must be a valid email"),
 
