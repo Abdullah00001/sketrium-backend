@@ -99,10 +99,11 @@ const addToCart = async (
   }
 
   // Validate stock
-  if (product.stock < newQuantity) {
+  const currentStock = product.stock || 0;
+  if (currentStock < newQuantity) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
-      `Only ${product.stock} items left in stock.`,
+      `Only ${currentStock} items left in stock.`,
     );
   }
 
@@ -156,10 +157,11 @@ const updateCartItem = async (
       throw new AppError(httpStatus.NOT_FOUND, 'Product not found');
     }
 
-    if (product.stock < quantity) {
+    const currentStock = product.stock || 0;
+    if (currentStock < quantity) {
       throw new AppError(
         httpStatus.BAD_REQUEST,
-        `Only ${product.stock} items left in stock.`,
+        `Only ${currentStock} items left in stock.`,
       );
     }
     
