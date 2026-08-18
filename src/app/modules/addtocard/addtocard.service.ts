@@ -1,6 +1,7 @@
 import httpStatus from 'http-status';
 import AppError from '../../error/AppError';
 import { Cart } from './addtotocard.model';
+import { Product } from '../product/product.model';
 
 // const getCart = async (userId: string) => {
 //   const cart = await Cart.findOne({ user: userId }).populate(
@@ -79,6 +80,11 @@ const addToCart = async (
       httpStatus.BAD_REQUEST,
       `Your cart already contains items in ${cart.items[0]?.currency}. Please complete your current order before adding items in a different currency.`,
     );
+  const product = await Product.findById(productId);
+  if (!product) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Product not found');
+  }
+
   // Check if same product+color+size already in cart
   const existingIndex = cart.items.findIndex(
     (item: any) =>
@@ -87,9 +93,22 @@ const addToCart = async (
       item.size === (size || ''),
   );
 
+  let newQuantity = quantity;
+  if (existingIndex > -1) {
+    newQuantity = cart.items[existingIndex].quantity + quantity;
+  }
+
+  // Validate stock
+  if (product.stock < newQuantity) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      `Only ${product.stock} items left in stock.`,
+    );
+  }
+
   if (existingIndex > -1) {
     // Update quantity
-    cart.items[existingIndex].quantity += quantity;
+    cart.items[existingIndex].quantity = newQuantity;
   } else {
     cart.items.push({
       product: productId as any,
@@ -132,6 +151,18 @@ const updateCartItem = async (
       return !(productMatch && colorMatch && sizeMatch);
     });
   } else {
+    const product = await Product.findById(productId);
+    if (!product) {
+      throw new AppError(httpStatus.NOT_FOUND, 'Product not found');
+    }
+
+    if (product.stock < quantity) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        `Only ${product.stock} items left in stock.`,
+      );
+    }
+    
     item.quantity = quantity;
   }
 
