@@ -18,7 +18,7 @@ jobs:
       with:
         host: ${{ secrets.VPS_IP }}
         username: ${{ secrets.VPS_USER }}
-        password: ${{ secrets.VPS_PASSWORD }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
           cd /home/developer/sketrium-backend
           git pull origin main
