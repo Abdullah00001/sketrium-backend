@@ -1,5 +1,6 @@
 import AppError from '../../error/AppError';
 import httpStatus from 'http-status';
+import { addContactToBrevo } from '../../utils/mailSender';
 import User from './user.model';
 import { TUser } from './user.interface';
 import bcrypt from 'bcrypt';
@@ -69,6 +70,10 @@ const updateProfile = async (id: string, payload: Partial<TUser>) => {
   const updatedUser = await User.findByIdAndUpdate(id, payload, {
     new: true,
   });
+
+  if (updatedUser && updatedUser.subscribeToEmails) {
+    addContactToBrevo(updatedUser.email, updatedUser.fullName).catch(console.error);
+  }
 
   return updatedUser;
 };
