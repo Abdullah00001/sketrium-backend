@@ -51,7 +51,7 @@ export const addContactToBrevo = async (email: string, fullName: string) => {
           FIRSTNAME,
           LASTNAME,
         },
-        listIds: [2], // Default list ID (adjust if needed)
+        listIds: [9], // Default list ID (adjust if needed)
         updateEnabled: true,
       }),
     });
