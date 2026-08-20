@@ -1,7 +1,7 @@
-
-
 // personalization.service.ts
 
+import httpStatus from "http-status";
+import { addContactToBrevo } from "../../utils/mailSender";
 import User from "../user/user.model";
 import { Personalization } from "./Personalization.model";
 
@@ -95,6 +95,10 @@ const updateProfileWithPersonalization = async (
     },
     { new: true }
   );
+
+  if (updatedUser && updatedUser.subscribeToEmails) {
+    addContactToBrevo(updatedUser.email, updatedUser.fullName).catch(console.error);
+  }
 
   // 2️⃣ PERSONALIZATION update
   const updatedPersonalization = await Personalization.findOneAndUpdate(
