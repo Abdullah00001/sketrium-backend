@@ -97,17 +97,11 @@ app.use(
 );
 
 
-app.use(
-  '/api/v1/order/webhook', 
-  express.raw({ type: 'application/json' })
-);
-
-app.use(
-  '/api/v1/tickets/webhook', 
-  express.raw({ type: 'application/json' })
-);
-
-app.use(express.json()); 
+app.use(express.json({
+  verify: (req: any, res, buf) => {
+    req.rawBody = buf;
+  }
+})); 
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 

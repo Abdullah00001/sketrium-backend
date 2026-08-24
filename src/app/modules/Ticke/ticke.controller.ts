@@ -826,7 +826,7 @@ const paymentCancel = catchAsync(async (req: Request, res: Response) => {
 
 const stripeWebhookHandler = catchAsync(async (req: Request, res: Response) => {
   const signature = req.headers['stripe-signature'] as string;
-  const rawBody = req.body; 
+  const rawBody = (req as any).rawBody || req.body; 
 
   if (!signature) {
     return res.status(httpStatus.BAD_REQUEST).send('Missing stripe signature');

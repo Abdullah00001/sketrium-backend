@@ -16,7 +16,6 @@ const router = Router();
 
 router.post(
   "/webhook",
-  express.raw({ type: "application/json" }), 
   orderController.stripeWebhook 
 );
  

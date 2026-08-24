@@ -237,9 +237,9 @@ export const handleStripeWebhook = async (req: any) => {
 
   try {
     event = stripe.webhooks.constructEvent(
-      req.body,
+      req.rawBody || req.body,
       sig,
-      process.env.STRIPE_WEBHOOK_SECRET as string,
+      config.stripe.stripe_webhook_secret as string,
     );
   } catch (err: any) {
     throw new AppError(400, `Webhook Error: ${err.message}`);
