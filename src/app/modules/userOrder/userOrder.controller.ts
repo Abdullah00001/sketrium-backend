@@ -84,7 +84,7 @@ export const orderSuccessPage = catchAsync(async (req, res) => {
     paymentIntentId = session.payment_intent as string;
 
     // 2️⃣ Already paid check (idempotency)
-    if (order.paymentStatus === 'paid') {
+    if (order.paymentStatus === 'completed' || order.paymentStatus === 'paid') {
       return res.send(generateSuccessHTML(order, 'Already paid.'));
     }
 
@@ -101,7 +101,7 @@ export const orderSuccessPage = catchAsync(async (req, res) => {
     }
 
     await Order.findByIdAndUpdate(orderId, {
-      paymentStatus: 'paid',
+      paymentStatus: 'completed',
       stripePaymentIntentId: paymentIntentId || '',
     });
 

@@ -59,10 +59,9 @@ const getOrderHistory = async (
 
 // ─── 4. Get Single Order Details ──────────────────────────────────────────
 const getOrderDetails = async (orderId: string, userId: string) => {
-  const order = await Order.findOne({ _id: orderId, user: userId }).populate(
-    'items.product',
-    'name images price category',
-  );
+  const order = await Order.findOne({ _id: orderId, user: userId })
+    .populate('items.product', 'name images price category')
+    .populate('user', 'fullName email phoneNumber image');
   if (!order) throw new Error('Order not found');
   return order;
 };
@@ -258,7 +257,7 @@ export const handleStripeWebhook = async (req: any) => {
       await Order.findByIdAndUpdate(
         orderId,
         {
-          paymentStatus: 'paid',
+          paymentStatus: 'completed',
           stripePaymentIntentId: session.payment_intent,
           stripeSessionId: session.id,
         },
@@ -268,7 +267,7 @@ export const handleStripeWebhook = async (req: any) => {
       // ✅ Cart clear করো
       await Cart.findByIdAndUpdate(
         cartId,
-        { items: [] },
+        { $set: { items: [] } },
         { session: dbSession },
       );
 
