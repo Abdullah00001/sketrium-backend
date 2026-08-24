@@ -799,6 +799,8 @@ const getProductDashboard = async (
         total: { $first: '$total' },
         orderStatus: { $first: '$orderStatus' },
         paymentStatus: { $first: '$paymentStatus' },
+        shippingAddress: { $first: '$shippingAddress' },
+        oderid: { $first: '$oderid' },
         createdAt: { $first: '$createdAt' },
       },
     },
