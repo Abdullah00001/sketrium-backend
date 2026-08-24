@@ -18,7 +18,7 @@ import { Review } from '../profilereview/profilereview.model';
 // ✅ Get Product Details
 export const getProductDetailsService = async (id: string) => {
   const product = await Product.findById(id)
-    .populate('host', 'fullName image')
+    .populate('host')
     .populate('reviews.user', 'fullName image');
   if (!product) throw new AppError(404, 'Product not found');
 
@@ -42,10 +42,15 @@ export const getProductDetailsService = async (id: string) => {
     }
   }
 
+  const productObject = product.toObject();
+
+  if (productObject.host) {
+    (productObject.host as any).merchantRating = Number(merchantRating.toFixed(1));
+  }
+
   return {
-    ...product.toObject(),
-    productRating: Number(productRating.toFixed(1)),
-    merchantRating: Number(merchantRating.toFixed(1))
+    ...productObject,
+    productRating: Number(productRating.toFixed(1))
   };
 };
 
