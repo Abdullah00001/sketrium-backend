@@ -63,8 +63,11 @@ const updatePersonalizationkk = async (
 
 
 const getPersonalizationByUser = async (userId: string) => {
-  const result = await Personalization.findOne({ user: userId })
-    .populate("user"); 
+  const result = await Personalization.findOneAndUpdate(
+    { user: userId },
+    { $setOnInsert: { user: userId } },
+    { new: true, upsert: true }
+  ).populate("user"); 
 
   return result;
 };
