@@ -177,14 +177,56 @@ const stripeWebhook = catchAsync(async (req: Request, res: Response) => {
   res.status(200).json({ received: true });
 });
 
+const verifyPayment = catchAsync(async (req: Request, res: Response) => {
+  const { session_id } = req.query;
+
+  if (!session_id) {
+    return res.status(httpStatus.BAD_REQUEST).json({ success: false, message: 'Invalid session' });
+  }
+
+  const session = await stripe.checkout.sessions.retrieve(session_id as string);
+  
+  if (!session) {
+    return res.status(httpStatus.NOT_FOUND).json({ success: false, message: 'Session not found' });
+  }
+
+  const orderId = session.metadata?.orderId;
+  const cartId = session.metadata?.cartId;
+  const paymentIntentId = session.payment_intent as string;
+
+  const order = await Order.findById(orderId);
+  if (!order) {
+    return res.status(httpStatus.NOT_FOUND).json({ success: false, message: 'Order not found' });
+  }
+
+  if (order.paymentStatus === 'completed' || order.paymentStatus === 'paid') {
+    return res.status(httpStatus.OK).json({ success: true, message: 'Payment already verified', data: order });
+  }
+
+  if (session.payment_status === 'paid') {
+    if (cartId) {
+      await Cart.findByIdAndDelete(cartId);
+    }
+
+    const updatedOrder = await Order.findByIdAndUpdate(orderId, {
+      paymentStatus: 'completed',
+      stripePaymentIntentId: paymentIntentId || '',
+    }, { new: true });
+
+    return res.status(httpStatus.OK).json({ success: true, message: 'Payment verified and status updated', data: updatedOrder });
+  } else {
+    return res.status(httpStatus.BAD_REQUEST).json({ success: false, message: 'Payment not completed yet' });
+  }
+});
+
 export const orderController = {
   createOrder,
-
   getOrderHistory,
   getOrderDetails,
-  orderCancelPage,
   orderSuccessPage,
+  orderCancelPage,
   updateOrderStatus,
   getMyProductOrders,
   stripeWebhook,
+  verifyPayment,
 };

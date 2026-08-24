@@ -92,7 +92,7 @@ export const createOrder = async (userId: string, body: any) => {
   const { shippingAddress, cartId } = body;
 
   if (shippingAddress) {
-    shippingAddress.postcode = shippingAddress.postcode || shippingAddress.postalCode || shippingAddress.zipCode || shippingAddress.zipcode || '';
+    shippingAddress.postcode = shippingAddress.postcode || shippingAddress.postalCode || shippingAddress.zipCode || shippingAddress.zipcode || shippingAddress.postCode || shippingAddress.postal_code || shippingAddress.zip_code || '';
   }
 
   const cart = await Cart.findOne({

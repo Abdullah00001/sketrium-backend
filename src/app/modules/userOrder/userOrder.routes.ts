@@ -34,6 +34,9 @@ router.get('/success', orderController.orderSuccessPage);
 
 router.get("/cancel", orderController.orderCancelPage);
 
+// ✅ Verify payment API - used by mobile app polling
+router.get("/payment/verify", orderController.verifyPayment);
+
 // ✅ Admin only
 router.patch("/status/:orderId", auth(USER_ROLE.USER,USER_ROLE.ORGANIZER), orderController.updateOrderStatus);
 
