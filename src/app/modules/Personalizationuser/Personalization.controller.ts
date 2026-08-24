@@ -58,7 +58,7 @@ const getPersonalization = catchAsync(async (req: Request, res: Response) => {
   const result = await personalizationService.getPersonalizationByUser(
     req.user._id
   );
-
+  console.log(result);
   sendResponse(res, {
     statusCode: 200,
     success: true,
