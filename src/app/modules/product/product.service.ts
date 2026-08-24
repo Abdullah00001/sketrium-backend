@@ -13,13 +13,40 @@ export const getAllProductsService = async (req: any) => {
   return products;
 };
 
+import { Review } from '../profilereview/profilereview.model';
+
 // ✅ Get Product Details
 export const getProductDetailsService = async (id: string) => {
   const product = await Product.findById(id)
     .populate('host', 'fullName image')
     .populate('reviews.user', 'fullName image');
   if (!product) throw new AppError(404, 'Product not found');
-  return product;
+
+  // Calculate Product Rating
+  let productRating = 0;
+  if (product.reviews && product.reviews.length > 0) {
+    const totalRating = product.reviews.reduce((sum, review) => sum + review.rating, 0);
+    productRating = totalRating / product.reviews.length;
+  }
+
+  // Fetch Merchant Rating
+  let merchantRating = 0;
+  const merchantId = product.host?._id;
+  if (merchantId) {
+    const ratingData = await Review.aggregate([
+      { $match: { organizer: merchantId, isDeleted: { $ne: true } } },
+      { $group: { _id: null, avgRating: { $avg: '$rating' } } }
+    ]);
+    if (ratingData.length > 0 && ratingData[0].avgRating) {
+      merchantRating = ratingData[0].avgRating;
+    }
+  }
+
+  return {
+    ...product.toObject(),
+    productRating: Number(productRating.toFixed(1)),
+    merchantRating: Number(merchantRating.toFixed(1))
+  };
 };
 
 // ✅ Create Product
