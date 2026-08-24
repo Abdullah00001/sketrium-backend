@@ -91,6 +91,10 @@ const cancelOrder = async (orderId: string, userId: string) => {
 export const createOrder = async (userId: string, body: any) => {
   const { shippingAddress, cartId } = body;
 
+  if (shippingAddress) {
+    shippingAddress.postcode = shippingAddress.postcode || shippingAddress.postalCode || shippingAddress.zipCode || shippingAddress.zipcode || '';
+  }
+
   const cart = await Cart.findOne({
     _id: cartId,
     user: userId,
