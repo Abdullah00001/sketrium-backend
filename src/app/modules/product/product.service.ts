@@ -14,6 +14,7 @@ export const getAllProductsService = async (req: any) => {
 };
 
 import { Review } from '../profilereview/profilereview.model';
+import SocialLink from '../sociallink/soscial.model';
 
 // ✅ Get Product Details
 export const getProductDetailsService = async (id: string) => {
@@ -29,16 +30,24 @@ export const getProductDetailsService = async (id: string) => {
     productRating = totalRating / product.reviews.length;
   }
 
-  // Fetch Merchant Rating
+  // Fetch Merchant Rating & Shop Info
   let merchantRating = 0;
+  let shopName = '';
   const merchantId = product.host?._id;
   if (merchantId) {
-    const ratingData = await Review.aggregate([
-      { $match: { organizer: merchantId, isDeleted: { $ne: true } } },
-      { $group: { _id: null, avgRating: { $avg: '$rating' } } }
+    const [ratingData, socialLinkData] = await Promise.all([
+      Review.aggregate([
+        { $match: { organizer: merchantId, isDeleted: { $ne: true } } },
+        { $group: { _id: null, avgRating: { $avg: '$rating' } } }
+      ]),
+      SocialLink.findOne({ user: merchantId }).select('shopName shoptype')
     ]);
+
     if (ratingData.length > 0 && ratingData[0].avgRating) {
       merchantRating = ratingData[0].avgRating;
+    }
+    if (socialLinkData) {
+      shopName = socialLinkData.shopName || '';
     }
   }
 
@@ -46,6 +55,7 @@ export const getProductDetailsService = async (id: string) => {
 
   if (productObject.host) {
     (productObject.host as any).merchantRating = Number(merchantRating.toFixed(1));
+    (productObject.host as any).shopName = shopName;
   }
 
   return {
