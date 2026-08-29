@@ -338,7 +338,8 @@ const buyTicket = async (
   quantity: number = 1,
   ticketType: string = "General"
 ) => {
-  if (quantity < 1 || quantity > 10) {
+  const parsedQuantity = Number(quantity);
+  if (isNaN(parsedQuantity) || parsedQuantity < 1 || parsedQuantity > 10) {
     throw new Error("Quantity must be between 1 and 10");
   }
 
@@ -368,7 +369,7 @@ const buyTicket = async (
       attendeeName: user.fullName,
       attendeeEmail: user.email,
       ticketType,
-      quantity,
+      quantity: parsedQuantity,
       price: 0,
       totalAmount: 0,
       paymentStatus: "paid",
@@ -389,8 +390,7 @@ const buyTicket = async (
       successUrl: `${config.backend_url}/tickets/success?ticketId=${ticket._id}`, // ✅ add
       event: {
         title: event.title,
-        date: event.date,
-        time: event.time,
+        date: event.daySchedules?.[0]?.date || event.endDate,
         location: event.location,
       },
     };
@@ -404,7 +404,7 @@ const buyTicket = async (
     attendeeName: user.fullName,
     attendeeEmail: user.email,
     ticketType,
-    quantity,
+    quantity: parsedQuantity,
     price: pricePerTicket,
     totalAmount,
     paymentStatus: "pending",
@@ -416,13 +416,17 @@ const buyTicket = async (
     customer_email: user.email,
     line_items: [
       {
-        quantity,
+        quantity: parsedQuantity,
         price_data: {
           currency: currencyCode,
           unit_amount: Math.round(pricePerTicket * 100),
           product_data: {
-            name: `${event.title} — ${ticketType} Ticket`,
-            description: `Quantity: ${quantity} | Date: ${new Date(event.date).toDateString()}`,
+            name: `${event.title || 'Event'} — ${ticketType} Ticket`,
+            description: `Quantity: ${parsedQuantity} | Date: ${
+              event.daySchedules?.[0]?.date
+                ? new Date(event.daySchedules[0].date).toDateString()
+                : (event.endDate ? new Date(event.endDate).toDateString() : 'TBD')
+            }`,
           },
         },
       },
@@ -431,7 +435,7 @@ const buyTicket = async (
       ticketId: ticket._id.toString(),
       userId: userId.toString(),
       eventId: eventId.toString(),
-      quantity: quantity.toString(),
+      quantity: parsedQuantity.toString(),
     },
     success_url: `${config.backend_url}/tickets/success?ticketId=${ticket._id}`,
     cancel_url: `${config.backend_url}/tickets/cancel?ticketId=${ticket._id}`,
@@ -461,8 +465,7 @@ await Event.findByIdAndUpdate(eventId, {
     successUrl: null,
     event: {
       title: event.title,
-      date: event.date,
-      time: event.time,
+      date: event.daySchedules?.[0]?.date || event.endDate,
       location: event.location,
     },
   };

@@ -11,7 +11,7 @@ import handleCastError from '../error/CastError';
 import config from '../config';
 
 const globalErrorHandler: ErrorRequestHandler = (err, req, res, next) => {
-  console.log(err.statusCode);
+  console.error('🔥 Error Caught by Global Handler:', err);
   //setting default values
   let statusCode = 500;
   let message = 'Something went wrong!';
