@@ -66,8 +66,9 @@ const eventSchema = new Schema<IEvent>(
     address: {
       addressLine1: {
         type: String,
-        required: [true, 'Address Line 1 is required'],
+        // required: [true, 'Address Line 1 is required'],
         trim: true,
+        default: '',
       },
       addressLine2: {
         type: String,
@@ -76,23 +77,27 @@ const eventSchema = new Schema<IEvent>(
       },
       city: {
         type: String,
-        required: [true, 'City/Town is required'],
+        // required: [true, 'City/Town is required'],
         trim: true,
+        default: '',
       },
       stateOrProvince: {
         type: String,
-        required: [true, 'State/Province is required'],
+        // required: [true, 'State/Province is required'],
         trim: true,
+        default: '',
       },
       postcode: {
         type: String,
-        required: [true, 'Postcode/Zip Code is required'],
+        // required: [true, 'Postcode/Zip Code is required'],
         trim: true,
+        default: '',
       },
       country: {
         type: String,
-        required: [true, 'Country is required'],
+        // required: [true, 'Country is required'],
         trim: true,
+        default: '',
       },
     },
 
