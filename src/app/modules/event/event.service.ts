@@ -1383,7 +1383,7 @@ const getFeaturedEvents = async (page: number = 1, limit: number = 10) => {
     .skip(skip)
     .limit(limit)
     .select(
-      'title date time location currency country coverImage price isFeatured isPinned isHighlighted isTopEvent attendees category host',
+      'title date time daySchedules location currency country coverImage price isFeatured isPinned isHighlighted isTopEvent attendees category host',
     );
 
   return {
