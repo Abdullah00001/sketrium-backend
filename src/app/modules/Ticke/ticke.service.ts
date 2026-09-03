@@ -180,7 +180,7 @@ const scanTicket = async (ticketNumber: string, eventId: string, organizerId: st
 
   // 2. Check if the event belongs to this organizer
   const event: any = ticket.event;
-  if (event.host.toString() !== organizerId) {
+  if (event.host.toString() !== organizerId.toString()) {
     return { valid: false, message: "You are not authorized to scan tickets for this event", TICKET_SCAN_STATUS: "UNAUTHORIZED_SCANNER" };
   }
 
