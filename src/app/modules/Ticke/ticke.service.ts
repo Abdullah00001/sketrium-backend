@@ -159,24 +159,57 @@ const getTicketQRCode = async (ticketId: string, userId: string) => {
 };
 
 // ─── 6. Scan QR — entry te use korle isUsed true hobe ────────────────────
-const scanTicket = async (ticketNumber: string) => {
+const scanTicket = async (ticketNumber: string, eventId: string, organizerId: string) => {
   const ticket = await Ticket.findOne({
     ticketNumber,
-    paymentStatus: "paid",
-  }).populate("event", "title date location");
+    isDeleted: { $ne: true },
+  }).populate("event");
 
-  if (!ticket) throw new Error("Invalid ticket");
-  if (ticket.isUsed) throw new Error("Ticket already used");
+  if (!ticket) {
+    throw new AppError(httpStatus.NOT_FOUND, "Invalid ticket number");
+  }
 
+  if (!ticket.event) {
+    throw new AppError(httpStatus.NOT_FOUND, "Event associated with this ticket was not found");
+  }
+
+  // 1. Check if the ticket belongs to the scanned event
+  if (ticket.event._id.toString() !== eventId) {
+    throw new AppError(httpStatus.BAD_REQUEST, "This ticket belongs to a different event");
+  }
+
+  // 2. Check if the event belongs to this organizer
+  const event: any = ticket.event;
+  if (event.host.toString() !== organizerId) {
+    throw new AppError(httpStatus.FORBIDDEN, "You are not authorized to scan tickets for this event");
+  }
+
+  // 3. Check if the event is expired
+  if (event.isPast === true) {
+    throw new AppError(httpStatus.BAD_REQUEST, "This event has already expired");
+  }
+
+  // 4. Check payment status
+  if (ticket.paymentStatus !== "paid") {
+    throw new AppError(httpStatus.BAD_REQUEST, `This ticket has not been paid for (Status: ${ticket.paymentStatus})`);
+  }
+
+  // 5. Check if ticket is already used
+  if (ticket.isUsed) {
+    throw new AppError(httpStatus.BAD_REQUEST, "This ticket has already been used");
+  }
+
+  // Mark ticket as used
   ticket.isUsed = true;
   await ticket.save();
 
   return {
     valid: true,
-    message: "Ticket scanned successfully",
+    message: "Ticket scanned and validated successfully",
     attendeeName: ticket.attendeeName,
     ticketType: ticket.ticketType,
-    event: ticket.event,
+    eventTitle: event.title,
+    eventLocation: event.location,
   };
 };
 

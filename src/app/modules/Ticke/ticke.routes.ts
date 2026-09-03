@@ -36,8 +36,8 @@ router.get("/ticket-details/:id", auth(USER_ROLE.USER), ticketController.getTick
 router.get("/ticket-qr/:id", auth(USER_ROLE.USER), ticketController.getTicketQRCode);
  
 // POST  /tickets/scan             — entry scanner (organizer use korbe)
-// body: { ticketNumber: "TKT-xxx-xxx" }
-router.post("/scan", auth(USER_ROLE.USER), ticketController.scanTicket);
+// body: { ticketNumber: "TKT-xxx-xxx", eventId: "..." }
+router.post("/scan", auth(USER_ROLE.ORGANIZER), ticketController.scanTicket);
 
 
 

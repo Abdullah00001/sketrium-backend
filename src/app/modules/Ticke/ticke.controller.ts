@@ -90,8 +90,17 @@ const getTicketQRCode = catchAsync(async (req: Request, res: Response) => {
 
 // Entry scanner er jonno — admin/organizer use korbe
 const scanTicket = catchAsync(async (req: Request, res: Response) => {
-  const { ticketNumber } = req.body;
-  const result = await ticketService.scanTicket(ticketNumber);
+  const { ticketNumber, eventId } = req.body;
+  const organizerId = req.user._id;
+
+  if (!eventId) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Event ID is required");
+  }
+  if (!ticketNumber) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Ticket number is required");
+  }
+
+  const result = await ticketService.scanTicket(ticketNumber, eventId, organizerId);
   sendResponse(res, {
     statusCode: 200,
     success: true,
