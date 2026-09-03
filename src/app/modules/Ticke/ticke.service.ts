@@ -166,37 +166,37 @@ const scanTicket = async (ticketNumber: string, eventId: string, organizerId: st
   }).populate("event");
 
   if (!ticket) {
-    throw new AppError(httpStatus.NOT_FOUND, "Invalid ticket number");
+    return { valid: false, message: "Invalid ticket number", TICKET_SCAN_STATUS: "INVALID_TICKET" };
   }
 
   if (!ticket.event) {
-    throw new AppError(httpStatus.NOT_FOUND, "Event associated with this ticket was not found");
+    return { valid: false, message: "Event associated with this ticket was not found", TICKET_SCAN_STATUS: "EVENT_NOT_FOUND" };
   }
 
   // 1. Check if the ticket belongs to the scanned event
   if (ticket.event._id.toString() !== eventId) {
-    throw new AppError(httpStatus.BAD_REQUEST, "This ticket belongs to a different event");
+    return { valid: false, message: "This ticket belongs to a different event", TICKET_SCAN_STATUS: "WRONG_EVENT" };
   }
 
   // 2. Check if the event belongs to this organizer
   const event: any = ticket.event;
   if (event.host.toString() !== organizerId) {
-    throw new AppError(httpStatus.FORBIDDEN, "You are not authorized to scan tickets for this event");
+    return { valid: false, message: "You are not authorized to scan tickets for this event", TICKET_SCAN_STATUS: "UNAUTHORIZED_SCANNER" };
   }
 
   // 3. Check if the event is expired
   if (event.isPast === true) {
-    throw new AppError(httpStatus.BAD_REQUEST, "This event has already expired");
+    return { valid: false, message: "This event has already expired", TICKET_SCAN_STATUS: "EVENT_EXPIRED" };
   }
 
   // 4. Check payment status
   if (ticket.paymentStatus !== "paid") {
-    throw new AppError(httpStatus.BAD_REQUEST, `This ticket has not been paid for (Status: ${ticket.paymentStatus})`);
+    return { valid: false, message: `This ticket has not been paid for (Status: ${ticket.paymentStatus})`, TICKET_SCAN_STATUS: "TICKET_NOT_PAID" };
   }
 
   // 5. Check if ticket is already used
   if (ticket.isUsed) {
-    throw new AppError(httpStatus.BAD_REQUEST, "This ticket has already been used");
+    return { valid: false, message: "This ticket has already been used", TICKET_SCAN_STATUS: "TICKET_ALREADY_USED" };
   }
 
   // Mark ticket as used
@@ -206,6 +206,7 @@ const scanTicket = async (ticketNumber: string, eventId: string, organizerId: st
   return {
     valid: true,
     message: "Ticket scanned and validated successfully",
+    TICKET_SCAN_STATUS: "SUCCESS",
     attendeeName: ticket.attendeeName,
     ticketType: ticket.ticketType,
     eventTitle: event.title,
