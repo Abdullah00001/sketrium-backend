@@ -915,88 +915,58 @@ const getMyTicketnew = async (
 
 const getDashboardStats = async (userId: string, year?: number) => {
   const selectedYear = year || new Date().getFullYear();
-
   const hostId = new Types.ObjectId(userId);
 
-  // ── Total Events ─────────────────────────────
-  const totalEvent = await Event.countDocuments({
-    host: hostId,
+  // 1. Get all events for the host
+  const events = await Event.find({ host: hostId, isDeleted: false }).select('_id date endDate daySchedules');
+  
+  // Count events that happen in the selected year
+  const isEventInYear = (e: any) => {
+    if (e.date && new Date(e.date).getFullYear() === selectedYear) return true;
+    if (e.endDate && new Date(e.endDate).getFullYear() === selectedYear) return true;
+    if (e.daySchedules && e.daySchedules.length > 0) {
+      return e.daySchedules.some((ds: any) => new Date(ds.date).getFullYear() === selectedYear);
+    }
+    // Fallback: if created this year
+    return e.createdAt && new Date(e.createdAt).getFullYear() === selectedYear;
+  };
+
+  const validEvents = events.filter(isEventInYear);
+  const eventIds = events.map(e => e._id); // We want tickets for ALL host events to check for earnings in this year
+  const totalEvent = validEvents.length;
+
+  // 2. Fetch Tickets for all host events
+  const tickets = await Ticket.find({
+    event: { $in: eventIds },
+    paymentStatus: 'paid',
     isDeleted: false,
-    date: {
-      $gte: new Date(`${selectedYear}-01-01`),
-      $lte: new Date(`${selectedYear}-12-31`),
-    },
   });
 
-  // ── Total Attendees ──────────────────────────
-  const attendeesResult = await Event.aggregate([
-    {
-      $match: {
-        host: hostId,
-        isDeleted: { $ne: true },
-        date: {
-          $gte: new Date(`${selectedYear}-01-01`),
-          $lte: new Date(`${selectedYear}-12-31`),
-        },
-      },
-    },
-    {
-      $group: {
-        _id: null,
-        totalAttendees: {
-          $sum: { $size: '$attendees' },
-        },
-      },
-    },
-  ]);
+  // Calculate stats for the selected year
+  let totalAttendees = 0;
+  let totalEarning = 0;
+  const monthlyEarningsMap = new Map<number, number>();
+  for (let i = 1; i <= 12; i++) monthlyEarningsMap.set(i, 0);
 
-  const totalAttendees = attendeesResult[0]?.totalAttendees || 0;
+  tickets.forEach(ticket => {
+    const ticketYear = new Date(ticket.createdAt as Date).getFullYear();
+    if (ticketYear === selectedYear) {
+      const quantity = ticket.quantity || 1;
+      const amount = ticket.totalAmount || ticket.price || 0;
+      
+      totalAttendees += quantity;
+      totalEarning += amount;
 
-  // ── Monthly Earnings ─────────────────────────
-
-  const monthlyEarning = await Event.aggregate([
-    {
-      $match: {
-        host: hostId,
-        isDeleted: { $ne: true },
-        date: {
-          $gte: new Date(`${selectedYear}-01-01`),
-          $lte: new Date(`${selectedYear}-12-31`),
-        },
-      },
-    },
-    {
-      $group: {
-        _id: { $month: '$date' },
-        earning: {
-          $sum: {
-            $multiply: ['$price', { $size: '$attendees' }],
-          },
-        },
-      },
-    },
-    { $sort: { _id: 1 } },
-    {
-      $project: {
-        _id: 0,
-        month: '$_id',
-        earning: 1,
-      },
-    },
-  ]);
-
-  // ── Fill Missing Months ──────────────────────
-  const months = Array.from({ length: 12 }, (_, i) => {
-    const found = monthlyEarning.find(m => m.month === i + 1);
-
-    return {
-      month: i + 1,
-      earning: found?.earning || 0,
-    };
+      const month = new Date(ticket.createdAt as Date).getMonth() + 1;
+      const current = monthlyEarningsMap.get(month) || 0;
+      monthlyEarningsMap.set(month, current + amount);
+    }
   });
 
-  // ── Total Earnings ───────────────────────────
-  const totalEarning = months.reduce((sum, item) => sum + item.earning, 0);
+  const months = Array.from({ length: 12 }, (_, i) => ({
+    month: i + 1,
+    earning: monthlyEarningsMap.get(i + 1) || 0,
+  }));
 
   return {
     year: selectedYear,
@@ -1010,116 +980,54 @@ const getDashboardStats = async (userId: string, year?: number) => {
 const getEventChartData = async (eventId: string, year?: number) => {
   const selectedYear = year || new Date().getFullYear();
 
-  // ── Total Attendees ──────────────────────────
-  const attendeesResult = await Event.aggregate([
-    {
-      $match: {
-        _id: eventId,
-        isDeleted: { $ne: true },
-        date: {
-          $gte: new Date(`${selectedYear}-01-01`),
-          $lte: new Date(`${selectedYear}-12-31`),
-        },
-      },
-    },
-    {
-      $group: {
-        _id: null,
-        totalAttendees: {
-          $sum: { $size: '$attendees' },
-        },
-      },
-    },
-  ]);
+  // Find the event to check currency
+  const event = await Event.findById(eventId).select('currency isDeleted');
+  if (!event || event.isDeleted) {
+    return {
+      year: selectedYear,
+      totalAttendees: 0,
+      monthlyEarning: Array.from({ length: 12 }, (_, i) => ({
+        date: `${selectedYear}-${String(i + 1).padStart(2, '0')}`,
+        totalEarnings: 0,
+        earnings: [],
+      })),
+    };
+  }
 
-  const totalAttendees = attendeesResult[0]?.totalAttendees || 0;
+  // Fetch Tickets for this specific event
+  const tickets = await Ticket.find({
+    event: eventId,
+    paymentStatus: 'paid',
+    isDeleted: false,
+  });
 
-  const monthlyEarnings = await Event.aggregate([
-    {
-      $match: {
-        isDeleted: { $ne: true },
-        _id: new mongoose.Types.ObjectId(eventId), // optional
-      },
-    },
+  let totalAttendees = 0;
+  const monthlyEarningsMap = new Map<number, { totalEarnings: number, amount: number }>();
+  for (let i = 1; i <= 12; i++) monthlyEarningsMap.set(i, { totalEarnings: 0, amount: 0 });
 
-    {
-      $unwind: '$daySchedules',
-    },
+  tickets.forEach(ticket => {
+    const ticketYear = new Date(ticket.createdAt as Date).getFullYear();
+    if (ticketYear === selectedYear) {
+      const quantity = ticket.quantity || 1;
+      const amount = ticket.totalAmount || ticket.price || 0;
+      
+      totalAttendees += quantity;
 
-    {
-      $match: {
-        'daySchedules.date': {
-          $gte: new Date(`${selectedYear}-01-01T00:00:00.000Z`),
-          $lte: new Date(`${selectedYear}-12-31T23:59:59.999Z`),
-        },
-      },
-    },
-
-    {
-      $addFields: {
-        month: {
-          $month: '$daySchedules.date',
-        },
-        earning: {
-          $multiply: ['$price', { $size: '$attendees' }],
-        },
-      },
-    },
-
-    // Group by month + currency
-    {
-      $group: {
-        _id: {
-          month: '$month',
-          currency: '$currency',
-        },
-        amount: {
-          $sum: '$earning',
-        },
-      },
-    },
-
-    // Group by month
-    {
-      $group: {
-        _id: '$_id.month',
-        totalEarnings: {
-          $sum: '$amount',
-        },
-        earnings: {
-          $push: {
-            currency: '$_id.currency',
-            amount: '$amount',
-          },
-        },
-      },
-    },
-
-    {
-      $project: {
-        _id: 0,
-        month: '$_id',
-        totalEarnings: 1,
-        earnings: 1,
-      },
-    },
-
-    {
-      $sort: {
-        month: 1,
-      },
-    },
-  ]);
+      const month = new Date(ticket.createdAt as Date).getMonth() + 1;
+      const current = monthlyEarningsMap.get(month)!;
+      current.totalEarnings += amount;
+      current.amount += amount;
+    }
+  });
 
   const result = Array.from({ length: 12 }, (_, index) => {
     const month = index + 1;
-
-    const found = monthlyEarnings.find(item => item.month === month);
+    const stats = monthlyEarningsMap.get(month)!;
 
     return {
       date: `${selectedYear}-${String(month).padStart(2, '0')}`,
-      totalEarnings: found?.totalEarnings || 0,
-      earnings: found?.earnings || [],
+      totalEarnings: stats.totalEarnings,
+      earnings: stats.amount > 0 ? [{ currency: event.currency || 'USD', amount: stats.amount }] : [],
     };
   });
 
@@ -1131,43 +1039,36 @@ const getEventChartData = async (eventId: string, year?: number) => {
 };
 
 const getTotalEarningCards = async (userId: string) => {
-  const totalEarningsByCurrency = await Event.aggregate([
-    {
-      $match: {
-        host: new Types.ObjectId(userId),
-        isDeleted: { $ne: true },
-      },
-    },
+  const hostId = new Types.ObjectId(userId);
 
-    {
-      $addFields: {
-        earning: {
-          $multiply: ['$price', { $size: '$attendees' }],
-        },
-      },
-    },
+  // Find all events for the host
+  const events = await Event.find({ host: hostId, isDeleted: false }).select('_id currency');
+  const eventMap = new Map<string, string>();
+  events.forEach(e => eventMap.set(e._id.toString(), e.currency || 'USD'));
 
-    {
-      $group: {
-        _id: '$currency',
-        amount: {
-          $sum: '$earning',
-        },
-      },
-    },
+  const eventIds = events.map(e => e._id);
 
-    {
-      $project: {
-        _id: 0,
-        currency: '$_id',
-        amount: 1,
-      },
-    },
+  // Fetch Tickets for all host events
+  const tickets = await Ticket.find({
+    event: { $in: eventIds },
+    paymentStatus: 'paid',
+    isDeleted: false,
+  });
 
-    {
-      $sort: { currency: 1 },
-    },
-  ]);
+  const earningsByCurrency = new Map<string, number>();
+
+  tickets.forEach(ticket => {
+    const currency = eventMap.get(ticket.event.toString()) || 'USD';
+    const amount = ticket.totalAmount || ticket.price || 0;
+    
+    const current = earningsByCurrency.get(currency) || 0;
+    earningsByCurrency.set(currency, current + amount);
+  });
+
+  const totalEarningsByCurrency = Array.from(earningsByCurrency.entries()).map(([currency, amount]) => ({
+    currency,
+    amount,
+  })).sort((a, b) => a.currency.localeCompare(b.currency));
 
   return totalEarningsByCurrency;
 };
