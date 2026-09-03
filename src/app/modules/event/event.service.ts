@@ -1312,41 +1312,53 @@ const getRecentPayments = async (
 ) => {
   const skip = (page - 1) * limit;
 
-  const query: any = {
-    host: userId,
-    isDeleted: false,
-    'attendees.0': { $exists: true },
-  };
-
-  // Event title filter
-  if (searchTerm) {
-    query.title = {
-      $regex: searchTerm,
-      $options: 'i',
+  // 1. Find all events hosted by the user
+  const organizerEvents = await Event.find({ host: userId }).select('_id title currency');
+  
+  if (!organizerEvents.length) {
+    return {
+      meta: { page, limit, total: 0, totalPage: 0 },
+      data: [],
     };
   }
 
-  // Total count
-  const total = await Event.countDocuments(query);
+  let eventIds = organizerEvents.map(e => e._id);
 
-  // Fetch events
-  const events = await Event.find(query)
-    .populate('attendees', 'fullName email image')
-    .sort({ updatedAt: -1 })
+  // 2. Filter by search term if provided
+  if (searchTerm) {
+    const matchingEvents = organizerEvents.filter(e => 
+      e.title.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    eventIds = matchingEvents.map(e => e._id);
+  }
+
+  const query: any = {
+    event: { $in: eventIds },
+    paymentStatus: 'paid',
+    isDeleted: false,
+  };
+
+  // 3. Count total tickets
+  const total = await Ticket.countDocuments(query);
+
+  // 4. Fetch tickets
+  const tickets = await Ticket.find(query)
+    .populate('user', 'fullName email image')
+    .sort({ createdAt: -1 })
     .skip(skip)
-    .limit(limit)
-    .select('title price currency attendees updatedAt');
+    .limit(limit);
 
-  // Flatten payments
-  const payments = events.flatMap(event =>
-    (event.attendees as any[]).map(attendee => ({
-      eventTitle: event.title,
-      amount: event.price,
-      currency: event.currency,
-      user: attendee,
-      paidAt: event.updatedAt,
-    })),
-  );
+  // 5. Format to match expected output
+  const payments = tickets.map(ticket => {
+    const event = organizerEvents.find(e => e._id.toString() === ticket.event.toString());
+    return {
+      eventTitle: event?.title || 'Unknown Event',
+      amount: ticket.totalAmount || ticket.price,
+      currency: event?.currency || 'USD',
+      user: ticket.user,
+      paidAt: ticket.createdAt,
+    };
+  });
 
   return {
     meta: {
