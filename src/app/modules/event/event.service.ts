@@ -870,7 +870,7 @@ const getMyTicketnew = async (
 
   const allTickets = await Ticket.find({
     user: userId,
-    paymentStatus: 'pending',
+    paymentStatus: 'paid',
     isDeleted: { $ne: true },
   })
     .populate({
