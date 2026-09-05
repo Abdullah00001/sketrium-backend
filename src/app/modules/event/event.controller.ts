@@ -1,3 +1,4 @@
+import { Ticket } from "../Ticke/ticke.model";
 import mongoose from 'mongoose';
 import AppError from '../../error/AppError';
 import catchAsync from '../../utils/catchAsync';
@@ -462,13 +463,30 @@ const getEventAttendees = catchAsync(async (req, res) => {
   const eventForCount = await Event.findById(id).select('attendees');
   const totalAttendees = (eventForCount?.attendees || []).length;
 
+  // ── Find Tickets to calculate isPresent status ──
+  const attendeeIds = (event.attendees || []).map((a: any) => a._id);
+  const tickets = await Ticket.find({
+    event: id,
+    user: { $in: attendeeIds },
+    paymentStatus: 'paid',
+  });
+
+  const presentUsers = new Set(
+    tickets.filter(t => t.isUsed).map(t => t.user.toString())
+  );
+
+  const attendeesWithPresence = (event.attendees || []).map((attendee: any) => ({
+    ...attendee.toObject(),
+    isPresent: presentUsers.has(attendee._id.toString()),
+  }));
+
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: 'Attendees fetched successfully',
     data: {
       eventTitle: event.title,
-      attendees: event.attendees || [],
+      attendees: attendeesWithPresence,
       pagination: {
         total: totalAttendees,
         page,
