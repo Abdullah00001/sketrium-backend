@@ -540,6 +540,23 @@ export const updateEventService = async (
     ...(address !== undefined && { address }),
   };
 
+  // ✅ Auto-recalculate `endDate` if `daySchedules` is provided but `endDate` is not explicitly set correctly.
+  let calculatedEndDate = endDate ? new Date(endDate) : undefined;
+  if (!calculatedEndDate && daySchedules && Array.isArray(daySchedules) && daySchedules.length > 0) {
+    const lastDay = daySchedules[daySchedules.length - 1];
+    if (lastDay.date) {
+      calculatedEndDate = new Date(lastDay.date);
+      updateData.endDate = calculatedEndDate;
+    }
+  }
+
+  // ✅ Automatically recalculate `isPast` based on the new `endDate`
+  if (calculatedEndDate) {
+    const now = new Date();
+    // Setting time to 0 to compare just the dates, or let the cron job handle exact time
+    updateData.isPast = calculatedEndDate < now;
+  }
+
   const event = await Event.findByIdAndUpdate(
     id,
     { $set: updateData },
