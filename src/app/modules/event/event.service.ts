@@ -691,7 +691,7 @@ const searchEvents = async (query: {
     const targetDate = new Date(date);
     const nextDay = new Date(targetDate);
     nextDay.setDate(nextDay.getDate() + 1);
-    filter.date = {
+    filter['daySchedules.date'] = {
       $gte: targetDate,
       $lt: nextDay,
     };
@@ -700,16 +700,16 @@ const searchEvents = async (query: {
   // ✅ startDate & endDate range filter
   // date filter থাকলে এটা skip হবে, conflict এড়াতে
   if (!date && (startDate || endDate)) {
-    filter.date = {};
+    filter['daySchedules.date'] = {};
     if (startDate) {
       const start = new Date(startDate);
       start.setHours(0, 0, 0, 0); // দিনের শুরু
-      filter.date.$gte = start;
+      filter['daySchedules.date'].$gte = start;
     }
     if (endDate) {
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999); // দিনের শেষ
-      filter.date.$lte = end;
+      filter['daySchedules.date'].$lte = end;
     }
   }
 
