@@ -188,10 +188,24 @@ const updateProfile = async (
       'language',
       'howDidYouHear',
       'subscribeToEmails',
+      'merchantLegalLink',
+      'organizerLegalLink',
     ];
     for (const field of userFields) {
       if (body[field] !== undefined) {
         userUpdateData[field] = body[field];
+      }
+    }
+
+    if (user.role === 'ORGANIZER' && 'organizerLegalLink' in body) {
+      if (!body.organizerLegalLink || (body.organizerLegalLink as string).trim().length === 0) {
+        throw new AppError(httpStatus.BAD_REQUEST, 'organizerLegalLink is required for organizers');
+      }
+    }
+
+    if (user.role === 'MARCHANT' && 'merchantLegalLink' in body) {
+      if (!body.merchantLegalLink || (body.merchantLegalLink as string).trim().length === 0) {
+        throw new AppError(httpStatus.BAD_REQUEST, 'merchantLegalLink is required for merchants');
       }
     }
 
