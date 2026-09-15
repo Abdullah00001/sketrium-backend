@@ -14,7 +14,7 @@ export const sendEmail = async (to: string, subject: string, html: string) => {
 
   try {
     const info = await transporter.sendMail({
-      from: 'support@skatrium.com', // Must match auth user
+      from: 'no-reply@skatrium.com', // Must match auth user
       to,
       subject,
       html,
