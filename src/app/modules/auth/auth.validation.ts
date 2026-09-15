@@ -105,16 +105,28 @@ export const registerZodSchema = z.object({
     role: z.enum([
       UserRole.admin,
       UserRole.USER,
-     
+      UserRole.ORGANIZER,
+      UserRole.MARCHANT,
+      UserRole.KAATEDJ,
     ]),
 
     howDidYouHear: z.string().optional(),
+
+    legalLink: z.string().optional(),
 
     subscribeToEmails: z.boolean().optional().default(false),
 
     termsAccepted: z.boolean().refine((val) => val === true, {
       message: "Terms must be accepted",
     }),
+  }).refine((data) => {
+    if (data.role === UserRole.ORGANIZER || data.role === UserRole.MARCHANT) {
+      return !!data.legalLink && data.legalLink.trim().length > 0;
+    }
+    return true;
+  }, {
+    message: "Legal link is required for organizers and merchants",
+    path: ["legalLink"],
   }),
 });
 

@@ -61,6 +61,7 @@ export interface TUser {
   country: string;
   fcmToken?: string;
   adminapproval?: 'pending' | 'approved' | 'rejected';
+  legalLink?: string;
   howDidYouHear?: string;
   subscribeToEmails?: boolean;
   termsAccepted?: boolean;

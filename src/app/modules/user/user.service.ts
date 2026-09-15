@@ -66,6 +66,12 @@ const updateProfile = async (id: string, payload: Partial<TUser>) => {
     }
   });
 
+  if ((user.role === 'ORGANIZER' || user.role === 'MARCHANT') && 'legalLink' in payload) {
+    if (!payload.legalLink || payload.legalLink.trim().length === 0) {
+      throw new AppError(httpStatus.BAD_REQUEST, 'legalLink is required for organizers and merchants');
+    }
+  }
+
   // Allow updating image, fullName, gender
   const updatedUser = await User.findByIdAndUpdate(id, payload, {
     new: true,

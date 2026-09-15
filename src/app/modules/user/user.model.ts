@@ -87,6 +87,10 @@ const UserSchema = new Schema<TUser, UserModel>(
       required: true,
       // default: UserRole.agencies,
     },
+    legalLink: {
+      type: String,
+      default: '',
+    },
     howDidYouHear: {
       type: String,
       default: '',
