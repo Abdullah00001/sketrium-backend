@@ -112,7 +112,8 @@ export const registerZodSchema = z.object({
 
     howDidYouHear: z.string().optional(),
 
-    legalLink: z.string().optional(),
+    merchantLegalLink: z.string().optional(),
+    organizerLegalLink: z.string().optional(),
 
     subscribeToEmails: z.boolean().optional().default(false),
 
@@ -120,13 +121,16 @@ export const registerZodSchema = z.object({
       message: "Terms must be accepted",
     }),
   }).refine((data) => {
-    if (data.role === UserRole.ORGANIZER || data.role === UserRole.MARCHANT) {
-      return !!data.legalLink && data.legalLink.trim().length > 0;
+    if (data.role === UserRole.ORGANIZER) {
+      return !!data.organizerLegalLink && data.organizerLegalLink.trim().length > 0;
+    }
+    if (data.role === UserRole.MARCHANT) {
+      return !!data.merchantLegalLink && data.merchantLegalLink.trim().length > 0;
     }
     return true;
   }, {
-    message: "Legal link is required for organizers and merchants",
-    path: ["legalLink"],
+    message: "Appropriate legal link is required for organizers and merchants",
+    path: ["role"], // Attach error to role or a generic path since it depends on the role
   }),
 });
 

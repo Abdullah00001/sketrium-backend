@@ -87,7 +87,11 @@ const UserSchema = new Schema<TUser, UserModel>(
       required: true,
       // default: UserRole.agencies,
     },
-    legalLink: {
+    merchantLegalLink: {
+      type: String,
+      default: '',
+    },
+    organizerLegalLink: {
       type: String,
       default: '',
     },

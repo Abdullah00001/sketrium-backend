@@ -66,9 +66,15 @@ const updateProfile = async (id: string, payload: Partial<TUser>) => {
     }
   });
 
-  if ((user.role === 'ORGANIZER' || user.role === 'MARCHANT') && 'legalLink' in payload) {
-    if (!payload.legalLink || payload.legalLink.trim().length === 0) {
-      throw new AppError(httpStatus.BAD_REQUEST, 'legalLink is required for organizers and merchants');
+  if (user.role === 'ORGANIZER' && 'organizerLegalLink' in payload) {
+    if (!payload.organizerLegalLink || payload.organizerLegalLink.trim().length === 0) {
+      throw new AppError(httpStatus.BAD_REQUEST, 'organizerLegalLink is required for organizers');
+    }
+  }
+
+  if (user.role === 'MARCHANT' && 'merchantLegalLink' in payload) {
+    if (!payload.merchantLegalLink || payload.merchantLegalLink.trim().length === 0) {
+      throw new AppError(httpStatus.BAD_REQUEST, 'merchantLegalLink is required for merchants');
     }
   }
 
