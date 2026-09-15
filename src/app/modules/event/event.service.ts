@@ -673,7 +673,7 @@ const searchEvents = async (query: {
   if (category) filter.category = category;
 
   if (country) {
-    filter.location = { $regex: country, $options: 'i' };
+    filter['address.country'] = { $regex: country, $options: 'i' };
   }
 
   if (skiteeventType) filter.skiteeventType = skiteeventType;
