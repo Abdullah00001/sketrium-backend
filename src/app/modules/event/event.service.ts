@@ -378,7 +378,7 @@ export const getEventDetailsService = async (
 ) => {
   // await updatePastEvents(); // ✅ event details এর আগে update করুন
   const event = await Event.findById(id)
-    .populate('host', 'fullName image email')
+    .populate('host', 'fullName image email organizerLegalLink')
     .populate('attendees', 'fullName image email')
     .populate('reviews.user', 'fullName image');
 
