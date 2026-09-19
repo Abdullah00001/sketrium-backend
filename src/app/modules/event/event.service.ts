@@ -740,7 +740,7 @@ const searchEvents = async (query: {
 
   const events = await Event.find({ ...filter })
     .select(
-      'title description date currency time country location attendees gallery price coverImage daySchedules',
+      'title description date currency time country location attendees gallery price coverImage daySchedules eventType externalTicketUrl',
     )
     .populate('host', 'image email fullName')
     .populate('attendees', 'image email fullName')
@@ -1243,6 +1243,7 @@ const getAllMyEvents = async (userId: string, query: any) => {
       currency
       category
       skiteeventType
+      externalTicketUrl
       createdAt
       `,
     );
