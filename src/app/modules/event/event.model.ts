@@ -148,8 +148,12 @@ const eventSchema = new Schema<IEvent>(
     // Event type
     eventType: {
       type: String,
-      enum: ['Free Event', 'Paid Event'],
+      enum: ['Free Event', 'Paid Event', 'External Event'],
       default: 'Paid Event',
+    },
+    externalTicketUrl: {
+      type: String,
+      default: null,
     },
   },
   {

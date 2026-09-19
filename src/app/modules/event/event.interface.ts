@@ -84,7 +84,8 @@ export interface IEvent {
   isTopEvent?: boolean;
 
   // ── Event Type ────────────────────────────────────────────
-  eventType?: 'Free Event' | 'Paid Event';
+  eventType?: 'Free Event' | 'Paid Event' | 'External Event';
+  externalTicketUrl?: string;
 
   createdAt?: Date;
   updatedAt?: Date;

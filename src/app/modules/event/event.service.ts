@@ -43,6 +43,7 @@ export const createEventService = async (
       address,
       skiteeventType,
       eventType,
+      externalTicketUrl,
     } = body;
 
     let parsedAddress = address;
@@ -78,6 +79,8 @@ export const createEventService = async (
       normalizedEventType = 'Paid Event';
     } else if (normalizedEventType.toLowerCase() === 'free') {
       normalizedEventType = 'Free Event';
+    } else if (normalizedEventType.toLowerCase() === 'external') {
+      normalizedEventType = 'External Event';
     }
 
     // ✅ ডাটাবেজে ইভেন্ট তৈরি
@@ -104,6 +107,7 @@ export const createEventService = async (
       isTopEvent: isTopEvent || false,
       skiteeventType: skiteeventType || '',
       eventType: normalizedEventType,
+      externalTicketUrl: normalizedEventType === 'External Event' ? externalTicketUrl : null,
     });
 
     return event;
@@ -477,6 +481,7 @@ export const updateEventService = async (
     currency,
     skiteeventType,
     eventType,
+    externalTicketUrl,
   } = req.body;
 
   // ✅ form-data থেকে daySchedules স্ট্রিং আকারে আসলে সেটাকে JSON Array তে রূপান্তর করা
@@ -506,6 +511,8 @@ export const updateEventService = async (
       normalizedEventType = 'Paid Event';
     } else if (normalizedEventType.toLowerCase() === 'free') {
       normalizedEventType = 'Free Event';
+    } else if (normalizedEventType.toLowerCase() === 'external') {
+      normalizedEventType = 'External Event';
     }
   }
 
@@ -539,6 +546,16 @@ export const updateEventService = async (
     ...(daySchedules !== undefined && { daySchedules }),
     ...(address !== undefined && { address }),
   };
+
+  if (normalizedEventType !== undefined) {
+    if (normalizedEventType === 'External Event') {
+      updateData.externalTicketUrl = externalTicketUrl || null;
+    } else {
+      updateData.externalTicketUrl = null;
+    }
+  } else if (externalTicketUrl !== undefined) {
+    updateData.externalTicketUrl = externalTicketUrl;
+  }
 
   // ✅ Auto-recalculate `endDate` if `daySchedules` is provided but `endDate` is not explicitly set correctly.
   let calculatedEndDate = endDate ? new Date(endDate) : undefined;
