@@ -411,7 +411,8 @@ const getAllMyEvents = catchAsync(async (req, res) => {
     statusCode: httpStatus.OK,
     success: true,
     message: 'Events fetched successfully',
-    data: result,
+    data: result.data,
+    meta: result.meta,
   });
 });
 

@@ -273,8 +273,13 @@ export const getAllEvents = async (query: Record<string, any>) => {
   }
 
   // Sorting condition
-  const { page, limit, skip, sort } =
+  let { page, limit, skip, sort } =
     paginationHelper.calculatePagination(pagination);
+
+  // If sort is the default 'createdAt', change it to '-createdAt' for newest first approach
+  if (sort === 'createdAt') {
+    sort = '-createdAt';
+  }
 
   if (sort) {
     const sortArray = sort.split(',').map(field => {
@@ -1147,7 +1152,11 @@ const getTotalEarningCards = async (userId: string) => {
 const getAllMyEvents = async (userId: string, query: any) => {
   // await updatePastEvents();
 
-  const { type, search, date, startDate, endDate } = query;
+  const { type, search, date, startDate, endDate, page: queryPage, limit: queryLimit } = query;
+
+  const page = Number(queryPage) || 1;
+  const limit = Number(queryLimit) || 10;
+  const skip = (page - 1) * limit;
 
   const now = new Date();
 
@@ -1204,14 +1213,15 @@ const getAllMyEvents = async (userId: string, query: any) => {
   }
 
   // ── Fetch Events ─────────────────────────────
+  const total = await Event.countDocuments(filter);
+
   const events = await Event.find(filter)
-
     .populate('category', 'name')
-
     .sort({
-      date: type === 'past' ? -1 : 1,
+      createdAt: -1, // newest first approach
     })
-
+    .skip(skip)
+    .limit(limit)
     .select(
       `
       title
@@ -1233,10 +1243,19 @@ const getAllMyEvents = async (userId: string, query: any) => {
       currency
       category
       skiteeventType
+      createdAt
       `,
     );
 
-  return events;
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+    data: events,
+  };
 };
 
 const getRecentPayments = async (
