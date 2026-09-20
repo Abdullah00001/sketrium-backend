@@ -31,6 +31,7 @@ export interface IOrganizerProfile {
   eventuallyDue: string[];
   disabledReason?: string | null;
   stripeLastSyncedAt?: Date | null;
+  stripeLastEventCreatedAt?: Date | null;
 
   organizerLegalLink?: string;
   createdAt?: Date;

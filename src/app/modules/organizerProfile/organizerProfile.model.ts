@@ -11,15 +11,12 @@ const OrganizerProfileSchema = new Schema<IOrganizerProfile>(
     },
     stripeConnectedAccountId: {
       type: String,
-      default: null,
     },
     accountCreationOperationId: {
       type: String,
-      default: null,
     },
     stripeIdempotencyKey: {
       type: String,
-      default: null,
     },
     accountCreationStatus: {
       type: String,
@@ -91,6 +88,10 @@ const OrganizerProfileSchema = new Schema<IOrganizerProfile>(
       default: null,
     },
     stripeLastSyncedAt: {
+      type: Date,
+      default: null,
+    },
+    stripeLastEventCreatedAt: {
       type: Date,
       default: null,
     },

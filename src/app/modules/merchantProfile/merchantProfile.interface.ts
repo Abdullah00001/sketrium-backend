@@ -44,6 +44,7 @@ export interface IMerchantProfile {
   eventuallyDue: string[];
   disabledReason?: string | null;
   stripeLastSyncedAt?: Date | null;
+  stripeLastEventCreatedAt?: Date | null;
 
   merchantLegalLink?: string;
   createdAt?: Date;

@@ -11,15 +11,12 @@ const MerchantProfileSchema = new Schema<IMerchantProfile>(
     },
     stripeConnectedAccountId: {
       type: String,
-      default: null,
     },
     accountCreationOperationId: {
       type: String,
-      default: null,
     },
     stripeIdempotencyKey: {
       type: String,
-      default: null,
     },
     accountCreationStatus: {
       type: String,
@@ -91,6 +88,10 @@ const MerchantProfileSchema = new Schema<IMerchantProfile>(
       default: null,
     },
     stripeLastSyncedAt: {
+      type: Date,
+      default: null,
+    },
+    stripeLastEventCreatedAt: {
       type: Date,
       default: null,
     },

@@ -3,6 +3,7 @@ import httpStatus from 'http-status';
 import catchAsync from '../../utils/catchAsync';
 import sendResponse from '../../utils/sendResponse';
 import { stripeConnectService } from './stripeConnect.service';
+import { stripeConnectWebhookService } from './stripeConnectWebhook.service';
 
 const onboardMerchant = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user.id || req.user._id;
@@ -70,6 +71,30 @@ const handleRefresh = catchAsync(async (req: Request, res: Response) => {
   res.redirect(redirectUrl);
 });
 
+const handleConnectWebhook = catchAsync(async (req: Request, res: Response) => {
+  const signature = req.headers['stripe-signature'] as string;
+  const payload = (req as any).rawBody || req.body;
+
+  const event = stripeConnectWebhookService.verifyConnectWebhookSignature(
+    payload,
+    signature,
+  );
+
+  const result = await stripeConnectWebhookService.handleConnectWebhookEvent(
+    event,
+  );
+
+  res.status(result.httpStatus).json({
+    success:
+      result.status === 'SUCCESS' ||
+      result.status === 'ALREADY_PROCESSED' ||
+      result.status === 'UNSUPPORTED_EVENT_AUDITED' ||
+      result.status === 'MANUAL_RECONCILIATION_REQUIRED',
+    message: `Connect Webhook processed: ${result.status}`,
+    data: { status: result.status },
+  });
+});
+
 export const StripeConnectController = {
   onboardMerchant,
   getMerchantStatus,
@@ -77,4 +102,5 @@ export const StripeConnectController = {
   getOrganizerStatus,
   handleReturn,
   handleRefresh,
+  handleConnectWebhook,
 };

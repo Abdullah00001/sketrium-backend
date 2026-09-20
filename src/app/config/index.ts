@@ -73,6 +73,7 @@ export default {
           connect_return_url: process.env.STRIPE_CONNECT_RETURN_URL,
           connect_refresh_url: process.env.STRIPE_CONNECT_REFRESH_URL,
           connect_stale_lock_timeout_ms: Number(process.env.STRIPE_CONNECT_STALE_LOCK_TIMEOUT_MS) || 300000,
+          connect_webhook_secret: process.env.STRIPE_CONNECT_WEBHOOK_SECRET || '',
      },
      super_admin: {
           email: process.env.SUPER_ADMIN_EMAIL,
