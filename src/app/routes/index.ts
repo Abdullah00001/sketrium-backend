@@ -27,6 +27,7 @@ import { WithdrawalRoutes } from '../modules/withdrawal/withdrawal.routes';
 import { FAQRoutes } from '../modules/FAQ/faq.route';
 import { webhookRoutes } from '../modules/webhook/webhook.routes';
 import { paymentRoutes } from '../modules/payment/payment.routes';
+import { StripeConnectRoutes } from '../modules/stripeConnect/stripeConnect.routes';
 
 // import { PromoCodeRoutes } from '../modules/PromoCode/promocode.routes';
 
@@ -152,6 +153,10 @@ const moduleRoutes = [
   {
     path: '/webhooks',
     route: webhookRoutes,
+  },
+  {
+    path: '/connect',
+    route: StripeConnectRoutes,
   },
 
 ];

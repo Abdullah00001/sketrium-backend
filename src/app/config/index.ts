@@ -69,6 +69,10 @@ export default {
           stripe_product_id: process.env.STRIPE_PRODUCT_ID,
           expected_livemode: process.env.STRIPE_EXPECTED_LIVEMODE !== undefined ? process.env.STRIPE_EXPECTED_LIVEMODE === 'true' : process.env.NODE_ENV === 'production',
           processing_timeout_ms: Number(process.env.STRIPE_WEBHOOK_PROCESSING_TIMEOUT_MS) || 300000,
+          connect_token_secret: process.env.STRIPE_CONNECT_TOKEN_SECRET || '',
+          connect_return_url: process.env.STRIPE_CONNECT_RETURN_URL,
+          connect_refresh_url: process.env.STRIPE_CONNECT_REFRESH_URL,
+          connect_stale_lock_timeout_ms: Number(process.env.STRIPE_CONNECT_STALE_LOCK_TIMEOUT_MS) || 300000,
      },
      super_admin: {
           email: process.env.SUPER_ADMIN_EMAIL,
