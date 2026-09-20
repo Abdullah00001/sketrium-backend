@@ -84,7 +84,7 @@ export const orderSuccessPage = catchAsync(async (req, res) => {
     paymentIntentId = session.payment_intent as string;
 
     // 2️⃣ Already paid check (idempotency)
-    if (order.paymentStatus === 'completed' || order.paymentStatus === 'paid') {
+    if ((order.paymentStatus as string) === 'completed' || order.paymentStatus === 'paid') {
       return res.send(generateSuccessHTML(order, 'Already paid.'));
     }
 
@@ -199,7 +199,7 @@ const verifyPayment = catchAsync(async (req: Request, res: Response) => {
     return res.status(httpStatus.NOT_FOUND).json({ success: false, message: 'Order not found' });
   }
 
-  if (order.paymentStatus === 'completed' || order.paymentStatus === 'paid') {
+  if ((order.paymentStatus as string) === 'completed' || order.paymentStatus === 'paid') {
     return res.status(httpStatus.OK).json({ success: true, message: 'Payment already verified', data: order });
   }
 

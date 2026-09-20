@@ -26,6 +26,7 @@ import { ContactRoutes } from '../modules/Contact/contact.routes';
 import { WithdrawalRoutes } from '../modules/withdrawal/withdrawal.routes';
 import { FAQRoutes } from '../modules/FAQ/faq.route';
 import { webhookRoutes } from '../modules/webhook/webhook.routes';
+import { paymentRoutes } from '../modules/payment/payment.routes';
 
 // import { PromoCodeRoutes } from '../modules/PromoCode/promocode.routes';
 
@@ -34,6 +35,10 @@ import { webhookRoutes } from '../modules/webhook/webhook.routes';
 
 const router = Router();
 const moduleRoutes = [
+  {
+    path: '/payments',
+    route: paymentRoutes,
+  },
   {
     path: '/users',
     route: userRoutes,

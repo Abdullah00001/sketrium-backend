@@ -62,11 +62,13 @@ export default {
           phoneNumber: process.env.TWILIO_PHONE_NUMBER || '',
      },
      stripe: {
-          stripe_secret_key: process.env.STRIPE_SECRET_KYE,
+          stripe_secret_key: process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KYE,
           paymentSuccess_url: process.env.STRIPE_PAYMENT_SUCCESS_URL,
           stripe_webhook_secret: process.env.STRIPE_WEBHOOK_SECRET,
           stripe_webhook_url: process.env.STRIPE_WEBHOOK_URL,
           stripe_product_id: process.env.STRIPE_PRODUCT_ID,
+          expected_livemode: process.env.STRIPE_EXPECTED_LIVEMODE !== undefined ? process.env.STRIPE_EXPECTED_LIVEMODE === 'true' : process.env.NODE_ENV === 'production',
+          processing_timeout_ms: Number(process.env.STRIPE_WEBHOOK_PROCESSING_TIMEOUT_MS) || 300000,
      },
      super_admin: {
           email: process.env.SUPER_ADMIN_EMAIL,
