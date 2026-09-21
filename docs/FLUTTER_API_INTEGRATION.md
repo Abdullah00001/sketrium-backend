@@ -25,10 +25,247 @@ This guide defines the API contract for the **Stripe Marketplace Payment System*
 4. **Asynchronous Seller Transfers**: Automated payout splitting to connected seller accounts after payment success.
 
 ### Normal Product Payment Flow
-`Existing Cart` $\rightarrow$ `POST /api/v1/marketplace/payments/checkout/cart` $\rightarrow$ Receive `paymentId` $\rightarrow$ `POST /api/v1/marketplace/payments/:paymentId/create-intent` $\rightarrow$ Receive `clientSecret` $\rightarrow$ Present `PaymentSheet` $\rightarrow$ Poll `GET /api/v1/marketplace/payments/:paymentId/status` $\rightarrow$ Order Confirmed (`SUCCEEDED`) $\rightarrow$ Backend clears purchased cart items & transfers merchant payouts asynchronously.
+`Cart` $\rightarrow$ `Generate UUID` $\rightarrow$ `checkout/cart` $\rightarrow$ `paymentId` $\rightarrow$ `create-intent` $\rightarrow$ `clientSecret` $\rightarrow$ `PaymentSheet` $\rightarrow$ `status`
 
 ### Normal Event Payment Flow
-`Event Detail` $\rightarrow$ `POST /api/v1/marketplace/payments/checkout/event` $\rightarrow$ Receive `paymentId` $\rightarrow$ `POST /api/v1/marketplace/payments/:paymentId/create-intent` $\rightarrow$ Receive `clientSecret` $\rightarrow$ Present `PaymentSheet` $\rightarrow$ Poll `GET /api/v1/marketplace/payments/:paymentId/status` $\rightarrow$ Ticket Confirmed (`SUCCEEDED`) $\rightarrow$ Backend transfers organizer payout asynchronously.
+`Event` $\rightarrow$ `participantCount` $\rightarrow$ `Generate UUID` $\rightarrow$ `checkout/event` $\rightarrow$ `paymentId` $\rightarrow$ `create-intent` $\rightarrow$ `clientSecret` $\rightarrow$ `PaymentSheet` $\rightarrow$ `status`
+
+---
+
+## HOW TO START A PAYMENT
+
+This section defines the exact step-by-step payment initialization sequence for Product and Event checkouts.
+
+### PRODUCT Checkout Sequence
+
+1. User taps **"Proceed to Checkout"** in the Cart screen.
+2. Flutter generates a new UUID v4 locally as `clientCheckoutIdempotencyKey`.
+3. Flutter calls:
+   `POST /api/v1/marketplace/payments/checkout/cart`
+4. Backend returns `paymentId`.
+5. Flutter calls:
+   `POST /api/v1/marketplace/payments/{paymentId}/create-intent`
+6. Backend returns `clientSecret`.
+7. Flutter initializes Stripe PaymentSheet using `clientSecret`.
+8. Flutter presents PaymentSheet.
+9. Flutter checks:
+   `GET /api/v1/marketplace/payments/{paymentId}/status`
+10. Backend status is authoritative.
+
+#### Product Step-by-Step API Contract & Examples
+
+* **Step 3 Request**: `POST /api/v1/marketplace/payments/checkout/cart`
+  ```http
+  POST /api/v1/marketplace/payments/checkout/cart HTTP/1.1
+  Host: api.skatrium.com
+  Authorization: Bearer <accessToken>
+  Content-Type: application/json
+
+  {
+    "clientCheckoutIdempotencyKey": "123e4567-e89b-12d3-a456-426614174000",
+    "shippingAddress": {
+      "street": "123 Skate Ave",
+      "city": "Austin",
+      "state": "TX",
+      "zip": "78701",
+      "country": "US"
+    }
+  }
+  ```
+
+* **Step 4 Response (`201 Created`)**:
+  ```json
+  {
+    "success": true,
+    "message": "Product cart checkout created successfully",
+    "data": {
+      "payment": {
+        "_id": "66e8f1a2b3c4d5e6f7a8b9d0",
+        "userId": "66e8f1a2b3c4d5e6f7a8b9c0",
+        "paymentType": "PRODUCT_CART",
+        "currency": "USD",
+        "amount": 10998,
+        "status": "PENDING",
+        "clientCheckoutIdempotencyKey": "123e4567-e89b-12d3-a456-426614174000",
+        "createdAt": "2026-09-21T13:30:00.000Z"
+      },
+      "reservations": [
+        {
+          "_id": "66e8f1a2b3c4d5e6f7a8b9d1",
+          "paymentId": "66e8f1a2b3c4d5e6f7a8b9d0",
+          "reservationType": "PRODUCT",
+          "targetId": "66e8f1a2b3c4d5e6f7a8b9c1",
+          "quantity": 2,
+          "status": "RESERVED",
+          "expiresAt": "2026-09-21T14:00:00.000Z"
+        }
+      ]
+    }
+  }
+  ```
+
+* **Step 5 Request**: `POST /api/v1/marketplace/payments/66e8f1a2b3c4d5e6f7a8b9d0/create-intent`
+  ```http
+  POST /api/v1/marketplace/payments/66e8f1a2b3c4d5e6f7a8b9d0/create-intent HTTP/1.1
+  Host: api.skatrium.com
+  Authorization: Bearer <accessToken>
+  Content-Type: application/json
+
+  {}
+  ```
+
+* **Step 6 Response (`200 OK`)**:
+  ```json
+  {
+    "success": true,
+    "message": "Stripe PaymentIntent created successfully",
+    "data": {
+      "paymentId": "66e8f1a2b3c4d5e6f7a8b9d0",
+      "paymentIntentId": "pi_3P1234567890",
+      "clientSecret": "pi_3P1234567890_secret_abc123xyz",
+      "status": "PENDING"
+    }
+  }
+  ```
+
+* **Step 9 Request**: `GET /api/v1/marketplace/payments/66e8f1a2b3c4d5e6f7a8b9d0/status`
+  ```http
+  GET /api/v1/marketplace/payments/66e8f1a2b3c4d5e6f7a8b9d0/status HTTP/1.1
+  Host: api.skatrium.com
+  Authorization: Bearer <accessToken>
+  ```
+
+* **Step 10 Response (`200 OK`)**:
+  ```json
+  {
+    "success": true,
+    "message": "Payment status retrieved successfully",
+    "data": {
+      "paymentId": "66e8f1a2b3c4d5e6f7a8b9d0",
+      "status": "SUCCEEDED",
+      "amount": 10998,
+      "currency": "USD",
+      "paymentType": "PRODUCT_CART",
+      "reconciliationReason": null,
+      "createdAt": "2026-09-21T13:30:00.000Z",
+      "succeededAt": "2026-09-21T13:31:00.000Z"
+    }
+  }
+  ```
+
+---
+
+### EVENT Checkout Sequence
+
+1. User taps **"Buy Tickets"** on Event detail screen.
+2. Flutter generates a new UUID v4 locally as `clientCheckoutIdempotencyKey`.
+3. Flutter calls:
+   `POST /api/v1/marketplace/payments/checkout/event`
+4. Backend returns `paymentId`.
+5. Flutter calls:
+   `POST /api/v1/marketplace/payments/{paymentId}/create-intent`
+6. Backend returns `clientSecret`.
+7. Flutter initializes Stripe PaymentSheet using `clientSecret`.
+8. Flutter presents PaymentSheet.
+9. Flutter checks:
+   `GET /api/v1/marketplace/payments/{paymentId}/status`
+10. Backend status is authoritative.
+
+#### Event Step-by-Step API Contract & Examples
+
+* **Step 3 Request**: `POST /api/v1/marketplace/payments/checkout/event`
+  ```http
+  POST /api/v1/marketplace/payments/checkout/event HTTP/1.1
+  Host: api.skatrium.com
+  Authorization: Bearer <accessToken>
+  Content-Type: application/json
+
+  {
+    "eventId": "66e8f1a2b3c4d5e6f7a8b9e0",
+    "participantCount": 2,
+    "clientCheckoutIdempotencyKey": "987e6543-e21b-12d3-a456-426614174999"
+  }
+  ```
+
+* **Step 4 Response (`201 Created`)**:
+  ```json
+  {
+    "success": true,
+    "message": "Event ticket checkout created successfully",
+    "data": {
+      "payment": {
+        "_id": "66e8f1a2b3c4d5e6f7a8b9e1",
+        "userId": "66e8f1a2b3c4d5e6f7a8b9c0",
+        "paymentType": "EVENT_TICKET",
+        "currency": "USD",
+        "amount": 10000,
+        "status": "PENDING",
+        "clientCheckoutIdempotencyKey": "987e6543-e21b-12d3-a456-426614174999",
+        "createdAt": "2026-09-21T13:30:00.000Z"
+      },
+      "reservations": [
+        {
+          "_id": "66e8f1a2b3c4d5e6f7a8b9e2",
+          "paymentId": "66e8f1a2b3c4d5e6f7a8b9e1",
+          "reservationType": "EVENT",
+          "targetId": "66e8f1a2b3c4d5e6f7a8b9e0",
+          "quantity": 2,
+          "status": "RESERVED",
+          "expiresAt": "2026-09-21T14:00:00.000Z"
+        }
+      ]
+    }
+  }
+  ```
+
+* **Step 5 Request**: `POST /api/v1/marketplace/payments/66e8f1a2b3c4d5e6f7a8b9e1/create-intent`
+  ```http
+  POST /api/v1/marketplace/payments/66e8f1a2b3c4d5e6f7a8b9e1/create-intent HTTP/1.1
+  Host: api.skatrium.com
+  Authorization: Bearer <accessToken>
+  Content-Type: application/json
+
+  {}
+  ```
+
+* **Step 6 Response (`200 OK`)**:
+  ```json
+  {
+    "success": true,
+    "message": "Stripe PaymentIntent created successfully",
+    "data": {
+      "paymentId": "66e8f1a2b3c4d5e6f7a8b9e1",
+      "paymentIntentId": "pi_3Q9876543210",
+      "clientSecret": "pi_3Q9876543210_secret_xyz987abc",
+      "status": "PENDING"
+    }
+  }
+  ```
+
+* **Step 9 Request**: `GET /api/v1/marketplace/payments/66e8f1a2b3c4d5e6f7a8b9e1/status`
+  ```http
+  GET /api/v1/marketplace/payments/66e8f1a2b3c4d5e6f7a8b9e1/status HTTP/1.1
+  Host: api.skatrium.com
+  Authorization: Bearer <accessToken>
+  ```
+
+* **Step 10 Response (`200 OK`)**:
+  ```json
+  {
+    "success": true,
+    "message": "Payment status retrieved successfully",
+    "data": {
+      "paymentId": "66e8f1a2b3c4d5e6f7a8b9e1",
+      "status": "SUCCEEDED",
+      "amount": 10000,
+      "currency": "USD",
+      "paymentType": "EVENT_TICKET",
+      "reconciliationReason": null,
+      "createdAt": "2026-09-21T13:30:00.000Z",
+      "succeededAt": "2026-09-21T13:31:00.000Z"
+    }
+  }
+  ```
 
 ---
 
@@ -495,11 +732,27 @@ Flutter presents the native PaymentSheet via `flutter_stripe`:
 2. Call `POST /api/v1/marketplace/payments/:paymentId/create-intent` $\rightarrow$ receive `clientSecret`.
 3. Initialize PaymentSheet: `Stripe.instance.initPaymentSheet(paymentIntentClientSecret: clientSecret)`.
 4. Present PaymentSheet: `Stripe.instance.presentPaymentSheet()`.
-5. On PaymentSheet close: Start polling `GET /api/v1/marketplace/payments/:paymentId/status`.
+5. Evaluate PaymentSheet presentation result and backend payment status.
 
 > [!IMPORTANT]
 > PaymentSheet completion on device is **NOT** final payment confirmation.
-> Authoritative payment success happens asynchronously when Stripe webhooks notify the backend. Flutter must poll payment status to confirm completion.
+> Authoritative payment success happens asynchronously when Stripe webhooks notify the backend. Flutter must check backend payment status to confirm completion.
+
+### PaymentSheet State Handling Rules
+
+* **PaymentSheet Canceled by User**: The user closed or dismissed the native PaymentSheet UI without entering/submitting payment details.
+  - Do **NOT** create another checkout.
+  - Keep `paymentId` and `clientSecret`.
+  - Keep user on checkout summary screen. User may tap "Pay Now" again to re-open PaymentSheet.
+  - Do **NOT** start status polling.
+* **PaymentSheet Completed by User**: The user submitted payment details in PaymentSheet.
+  - Start checking/polling backend status: `GET /api/v1/marketplace/payments/{paymentId}/status`.
+* **Backend Status `PROCESSING`**: Stripe webhook is actively confirming payment in the background. Poll status every 2 seconds.
+* **Backend Status `SUCCEEDED`**: Charge confirmed by backend. Display Order Success / Ticket Confirmed screen. Clear local cart view. **STOP polling**.
+* **Backend Status `FAILED`**: Payment failed or card declined. Display error message. **STOP polling**. User may re-present PaymentSheet using the existing `clientSecret`.
+* **Backend Status `CANCELED`**: Terminal payment cancellation. **STOP polling**. Return user to Cart/Event screen.
+* **Backend Status `EXPIRED`**: 30-minute stock/capacity reservation TTL elapsed. **STOP polling**. Prompt user to start a new checkout.
+* **Backend Status `RECONCILIATION_REQUIRED`**: Inconsistency or pending review. **STOP polling**. Show Support contact option.
 
 ---
 
@@ -542,6 +795,17 @@ Flutter presents the native PaymentSheet via `flutter_stripe`:
 
 ## 9. Payment Failure, Cancellation & Retry Rules
 
+### WHAT HAPPENS WHEN USER CANCELS PAYMENTSHEET
+
+When the user closes or cancels the native PaymentSheet modal:
+1. Do **NOT** create another checkout request (`POST /checkout/cart` or `/checkout/event`).
+2. **Keep `paymentId`**.
+3. **Keep `clientSecret`**.
+4. The user may tap "Pay Now" or open PaymentSheet again for the same payment attempt using the existing `clientSecret`.
+5. Only create a new checkout when the existing payment or reservation is no longer usable (e.g. status is `EXPIRED` after 30 minutes or `CANCELED`).
+
+### Payment Scenarios Overview
+
 The implementation strictly distinguishes 6 payment scenarios:
 
 1. **User Cancels PaymentSheet UI**: User closes native PaymentSheet modal. `paymentId` and `clientSecret` remain active. Flutter retains checkout summary screen and allows user to tap "Pay Now" again without creating a new checkout.
@@ -555,10 +819,15 @@ The implementation strictly distinguishes 6 payment scenarios:
 
 ## 10. Idempotency Rules
 
-* Flutter generates a unique `clientCheckoutIdempotencyKey` (UUID v4) when the user initiates a **new** checkout attempt.
-* Flutter MUST **NOT** generate a new idempotency key when:
-  - User closes/cancels PaymentSheet UI.
-  - Card is declined (`requires_payment_method`).
+### Where does clientCheckoutIdempotencyKey come from?
+
+> **Answer:**
+> **Flutter generates it locally using UUID v4. It is NOT returned by the backend.**
+
+* The idempotency key is generated **ONCE** when starting a **NEW** checkout attempt (when the user taps "Proceed to Checkout" or "Buy Tickets").
+* Flutter MUST **NOT** generate a new idempotency key for:
+  - User closing/canceling PaymentSheet UI.
+  - Retrying the same PaymentIntent or re-presenting PaymentSheet.
   - Re-retrieving `clientSecret`.
   - Polling payment status.
 * Reusing an idempotency key with identical parameters returns the existing `Payment` document. Reusing a key with altered parameters returns `409 Conflict`.
@@ -664,3 +933,21 @@ Flutter polls status -> Receives SUCCEEDED -> Shows Order Confirmation
 | `GET` | `/api/v1/connect/return` | Stripe OAuth return handler | No | Public | Server-side handler redirecting to `skatrium://connect-return` |
 | `GET` | `/api/v1/connect/refresh` | Stripe OAuth refresh handler | No | Public | Server-side handler generating fresh onboarding link |
 | `POST` | `/api/v1/auth/refresh-token` | Refresh access token | No | Public | Automatically invoked on HTTP `401` |
+
+---
+
+## 17. Responsibilities: Flutter Owns vs Backend Owns
+
+### Flutter owns
+- Generating `clientCheckoutIdempotencyKey` (UUID v4)
+- Displaying PaymentSheet
+- Displaying payment state
+
+### Backend owns
+- Price
+- Seller allocation
+- Reservation
+- PaymentIntent amount
+- Payment confirmation
+- Seller transfers
+- Final payment status
