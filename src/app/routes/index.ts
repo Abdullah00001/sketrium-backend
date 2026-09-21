@@ -28,6 +28,7 @@ import { FAQRoutes } from '../modules/FAQ/faq.route';
 import { webhookRoutes } from '../modules/webhook/webhook.routes';
 import { paymentRoutes } from '../modules/payment/payment.routes';
 import { StripeConnectRoutes } from '../modules/stripeConnect/stripeConnect.routes';
+import { MarketplacePaymentRoutes } from '../modules/marketplace/marketplacePayment.route';
 
 // import { PromoCodeRoutes } from '../modules/PromoCode/promocode.routes';
 
@@ -36,6 +37,10 @@ import { StripeConnectRoutes } from '../modules/stripeConnect/stripeConnect.rout
 
 const router = Router();
 const moduleRoutes = [
+  {
+    path: '/marketplace/payments',
+    route: MarketplacePaymentRoutes,
+  },
   {
     path: '/payments',
     route: paymentRoutes,

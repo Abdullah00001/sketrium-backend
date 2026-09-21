@@ -36,7 +36,21 @@ jest.mock('../app/config', () => {
   };
 });
 
+import mongoose from 'mongoose';
+import config from '../app/config';
+
 describe('Stripe Webhook Foundation (Phase 1)', () => {
+  jest.setTimeout(30000);
+
+  beforeAll(async () => {
+    if (mongoose.connection.readyState === 0) {
+      await mongoose.connect(config.database_url as string);
+    }
+  });
+
+  afterAll(async () => {
+    await mongoose.disconnect();
+  });
   const secret = 'whsec_mock_secret';
   const stripe = new Stripe('sk_test_mock_key');
 

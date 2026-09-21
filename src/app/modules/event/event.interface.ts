@@ -71,6 +71,9 @@ export interface IEvent {
   gallery?: { id: string; url: string }[];
   host: Types.ObjectId;
   attendees?: Types.ObjectId[];
+  maxAttendees?: number | null;
+  confirmedParticipantCount?: number;
+  pendingReservationCount?: number;
   reviews?: IReview[];
   isPast?: boolean;
   isDeleted?: boolean;

@@ -43,6 +43,22 @@ export class StripeEventDispatcher {
   }
 
   /**
+   * Register a custom business event handler for a specific Stripe event type.
+   */
+  registerHandler(eventType: string, handler: StripeEventHandler): void {
+    const existing = this.handlers.get(eventType);
+    if (existing) {
+      // Chain existing logging handler with business handler
+      this.handlers.set(eventType, async (eventRecord: IStripeWebhookEvent) => {
+        await existing(eventRecord);
+        await handler(eventRecord);
+      });
+    } else {
+      this.handlers.set(eventType, handler);
+    }
+  }
+
+  /**
    * Dispatch an event to its registered handler.
    */
   async dispatch(eventRecord: IStripeWebhookEvent): Promise<void> {
