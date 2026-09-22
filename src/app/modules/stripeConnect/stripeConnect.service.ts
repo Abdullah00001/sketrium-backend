@@ -250,6 +250,10 @@ export class StripeConnectService {
           type: 'express',
           country: user.country || 'US',
           email: user.email,
+          capabilities: {
+            card_payments: { requested: true },
+            transfers: { requested: true },
+          },
           metadata: {
             skatriumUserId: user._id!.toString(),
             skatriumRole: role,

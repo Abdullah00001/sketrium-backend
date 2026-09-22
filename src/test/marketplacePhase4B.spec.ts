@@ -45,11 +45,11 @@ describe('Phase 4B — Stripe PaymentIntent Lifecycle & Webhook Suite', () => {
     await Payment.deleteMany({});
     await ReservationRecord.deleteMany({});
     await Cart.deleteMany({});
-    await Product.deleteMany({});
-    await Event.deleteMany({});
+    await Product.deleteMany({ name: /.*phase.*/i });
+    await Event.deleteMany({ title: /.*phase.*/i });
     await MerchantProfile.deleteMany({});
     await OrganizerProfile.deleteMany({});
-    await User.deleteMany({});
+    await User.deleteMany({ email: /.*@test\.com$/i });
 
     const suffix = `${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
 
