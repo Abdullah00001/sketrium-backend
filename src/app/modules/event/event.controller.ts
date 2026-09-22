@@ -319,7 +319,10 @@ export const addReviewadd = catchAsync(async (req, res) => {
   res.status(201).json({
     success: true,
     message: 'Review added successfully',
-    data: newReview,
+    data: {
+      ...newReview,
+      user: newReview.isAnonymous ? null : userId,
+    },
   });
 });
 

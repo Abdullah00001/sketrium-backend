@@ -1731,8 +1731,8 @@ const getEventReviews = async (
       rating: review.rating,
       comment: review.comment,
       createdAt: review.createdAt,
-      updatedAt: review.updatedAt,
-      reviewedBy: review.reviewedBy,
+      isAnonymous: review.isAnonymous,
+      reviewedBy: review.isAnonymous ? null : review.reviewedBy,
     }));
   }
 

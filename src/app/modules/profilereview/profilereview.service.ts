@@ -17,13 +17,18 @@ const createReview = async (
   },
   file?: Express.Multer.File,
 ) => {
-  // const alreadyReviewed = await Review.findOne({
-  //   reviewer: reviewerId,
-  //   organizer: payload.organizer,
-  // });
-  // if (alreadyReviewed) {
-  //   throw new AppError(httpStatus.CONFLICT, 'You have already reviewed this organizer');
-  // }
+  if (reviewerId.toString() === payload.organizer.toString()) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'You cannot review your own profile');
+  }
+
+  const alreadyReviewed = await Review.findOne({
+    reviewer: reviewerId,
+    organizer: payload.organizer,
+    isDeleted: { $ne: true },
+  });
+  if (alreadyReviewed) {
+    throw new AppError(httpStatus.CONFLICT, 'You have already reviewed this profile');
+  }
 
   let imageData = {};
   if (file) {
@@ -37,10 +42,17 @@ const createReview = async (
     ...imageData,
   });
 
-  return result.populate([
+  const populated = await result.populate([
     { path: 'reviewer', select: 'fullName image' },
     { path: 'organizer', select: 'fullName image' },
   ]);
+
+  const responseObj = populated.toObject ? populated.toObject() : (populated as any);
+  if (responseObj.isAnonymous) {
+    responseObj.reviewer = null;
+  }
+
+  return responseObj;
 };
 
 // ─── 2. Get Organizer Reviews ──────────────────────────────────────────────────
@@ -56,7 +68,7 @@ const getOrganizerReviews = async (
     isDeleted: { $ne: true },
   });
 
-  const reviews = await Review.find({ organizer: organizerId })
+  const reviews = await Review.find({ organizer: organizerId, isDeleted: { $ne: true } })
     .populate('reviewer', 'fullName image')
     .sort({ createdAt: -1 })
     .skip(skip)
@@ -253,11 +265,15 @@ const deleteReply = async (organizerId: string, reviewId: string) => {
 
 // ── Service ───────────────────────────────────────────────────────────────────
 const getMyReviews = async (organizerId: string) => {
-  const reviews = await Review.find({ organizer: organizerId })
-    .populate('reviewer', 'name email profileImage')
-    .populate('reply.organizer', 'name email profileImage')
-    .sort({ createdAt: -1 });
-  return reviews;
+  const docs = await Review.find({ organizer: organizerId, isDeleted: { $ne: true } })
+    .populate('reviewer', 'fullName image email')
+    .populate('reply.organizer', 'fullName image email')
+    .sort({ createdAt: -1 })
+    .lean();
+  return docs.map((doc: any) => ({
+    ...doc,
+    reviewer: doc.isAnonymous ? null : doc.reviewer,
+  }));
 };
  
 
@@ -274,14 +290,21 @@ const getReviewsByUser = async (
 
   const query = {
     organizer: new mongoose.Types.ObjectId(userId),
+    isDeleted: { $ne: true },
   };
 
-  const reviews = await Review.find(query)
+  const rawReviews = await Review.find(query)
     .populate('organizer', 'fullName image')
     .populate('reviewer', 'fullName image')
     .sort({ createdAt: -1 })
     .skip(skip)
-    .limit(limit);
+    .limit(limit)
+    .lean();
+
+  const reviews = rawReviews.map((doc: any) => ({
+    ...doc,
+    reviewer: doc.isAnonymous ? null : doc.reviewer,
+  }));
 
   const total = await Review.countDocuments(query);
 
@@ -293,7 +316,6 @@ const getReviewsByUser = async (
       total,
       totalPage: Math.ceil(total / limit),
     },
-    
   };
 };
 

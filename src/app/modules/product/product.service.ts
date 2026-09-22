@@ -1419,6 +1419,10 @@ const getReviewsByProduct = async (productId: string, page = 1, limit = 10) => {
     // পুরানো 'replies' বাদ দিয়ে নতুন 'reply' অবজেক্ট যোগ করা হচ্ছে
     delete reviewObj.replies;
 
+    if (reviewObj.isAnonymous) {
+      reviewObj.user = null;
+    }
+
     return {
       ...reviewObj,
       reply: firstReply, // রেসপন্সে এখন সরাসরি অবজেক্ট হিসেবে আসবে

@@ -801,14 +801,20 @@ const getOrganizerProfile = async (
     .select('title date time location coverImage price isFeatured eventType');
 
   // ── Reviews (latest 3) ────────────────────────────────────
-  const reviews = await Review.find({
+  const rawReviews = await Review.find({
     organizer: organizerId,
     isDeleted: false,
   })
     .populate('reviewer', 'fullName image isAnonymous')
     .sort({ createdAt: -1 })
     .limit(3)
-    .select('rating comment createdAt isAnonymous reply reviewer');
+    .select('rating comment createdAt isAnonymous reply reviewer')
+    .lean();
+
+  const reviews = rawReviews.map((r: any) => ({
+    ...r,
+    reviewer: r.isAnonymous ? null : r.reviewer,
+  }));
 
   return {
     user: {
@@ -887,14 +893,20 @@ const getMarchantProfile = async (
     .select('name price images category colors sizes discount stock');
 
   // ── Reviews ───────────────────────────────────────────────
-  const reviews = await Review.find({
+  const rawReviews = await Review.find({
     organizer: marchantId,
     isDeleted: false,
   })
     .populate('reviewer', 'fullName image')
     .sort({ createdAt: -1 })
     .limit(3)
-    .select('rating comment createdAt isAnonymous reply reviewer');
+    .select('rating comment createdAt isAnonymous reply reviewer')
+    .lean();
+
+  const reviews = rawReviews.map((r: any) => ({
+    ...r,
+    reviewer: r.isAnonymous ? null : r.reviewer,
+  }));
 
   return {
     user: {
