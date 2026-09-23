@@ -59,6 +59,7 @@ export class StripeWebhookService {
       account: (event as any).account || undefined,
       objectId: stripeObjectId,
       objectType: stripeObjectType,
+      metadata: (event.data?.object as any)?.metadata || undefined,
     };
 
     const eventMetaData = {

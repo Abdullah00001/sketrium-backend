@@ -9,6 +9,7 @@ export interface ISanitizedStripeSnapshot {
   account?: string;
   objectId?: string;
   objectType?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface IStripeStructuredError {

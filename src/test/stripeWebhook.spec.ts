@@ -374,5 +374,60 @@ describe('Stripe Webhook Foundation (Phase 1)', () => {
         })
       );
     });
+
+    it('16. Phase 4B Regression: Metadata survives sanitization and reaches dispatcher', async () => {
+      const intentWithMetadataEvent = {
+        ...sampleEventData,
+        id: 'evt_intent_with_metadata',
+        type: 'payment_intent.succeeded',
+        data: {
+          object: {
+            id: 'pi_123',
+            object: 'payment_intent',
+            metadata: {
+              paymentId: '6ab3727e9420010cb945839d'
+            }
+          }
+        }
+      };
+      
+      const { payloadBuffer, signature } = createSignedBuffer(intentWithMetadataEvent);
+      setupConstructEventMock(intentWithMetadataEvent);
+
+      let dispatchedPayload: any = null;
+      jest.spyOn(stripeEventDispatcher, 'dispatch').mockImplementation(async (record) => {
+        dispatchedPayload = record;
+      });
+
+      jest.spyOn(stripeWebhookRepository, 'findByEventId').mockResolvedValue(null);
+      
+      // Capture the actual event data created by stripeWebhook.service.ts
+      let capturedEventRecord: any = null;
+      jest.spyOn(stripeWebhookRepository, 'createPendingEvent').mockImplementation(async (eventMetaData: any) => {
+        capturedEventRecord = {
+          ...eventMetaData,
+          processingStatus: 'PENDING',
+        };
+        return capturedEventRecord;
+      });
+      
+      // Return the dynamically captured record containing the actual sanitizedSnapshot
+      jest.spyOn(stripeWebhookRepository, 'claimProcessing').mockImplementation(async () => {
+        return capturedEventRecord;
+      });
+      
+      jest.spyOn(stripeWebhookRepository, 'markSuccess').mockResolvedValue({} as any);
+
+      const res = await request(app)
+        .post('/api/v1/payments/stripe/webhook')
+        .set('stripe-signature', signature)
+        .set('Content-Type', 'application/json')
+        .send(payloadBuffer);
+
+      expect(res.status).toBe(200);
+      expect(dispatchedPayload).toBeDefined();
+      expect(dispatchedPayload.payload.metadata).toBeDefined();
+      expect(dispatchedPayload.payload.metadata.paymentId).toBe('6ab3727e9420010cb945839d');
+    });
   });
 });
