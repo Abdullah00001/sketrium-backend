@@ -10,6 +10,9 @@ export interface ISanitizedStripeSnapshot {
   objectId?: string;
   objectType?: string;
   metadata?: Record<string, any>;
+  amount?: number;
+  currency?: string;
+  status?: string;
 }
 
 export interface IStripeStructuredError {

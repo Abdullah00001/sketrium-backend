@@ -82,6 +82,29 @@ export class MarketplaceWebhookService {
     return { valid: true };
   }
 
+  private reconstructPaymentIntent(eventSnapshot: {
+    payload: ISanitizedStripeSnapshot;
+    rawEvent?: any;
+  }): any {
+    const rawObject = eventSnapshot.rawEvent?.data?.object;
+    if (rawObject) {
+      return rawObject;
+    }
+
+    if (!eventSnapshot.payload) {
+      return null;
+    }
+
+    const payloadObj = typeof (eventSnapshot.payload as any).toObject === 'function'
+      ? (eventSnapshot.payload as any).toObject()
+      : eventSnapshot.payload;
+
+    return {
+      ...payloadObj,
+      id: payloadObj.objectId,
+    };
+  }
+
   /**
    * Handler for payment_intent.succeeded
    */
@@ -91,7 +114,7 @@ export class MarketplaceWebhookService {
     rawEvent?: any;
   }): Promise<void> {
     const rawEvent = eventSnapshot.rawEvent;
-    const pi = (rawEvent?.data?.object || eventSnapshot.payload) as any;
+    const pi = this.reconstructPaymentIntent(eventSnapshot);
     const paymentIdStr = pi?.metadata?.paymentId;
 
     if (!paymentIdStr) {
@@ -248,7 +271,7 @@ export class MarketplaceWebhookService {
     rawEvent?: any;
   }): Promise<void> {
     const rawEvent = eventSnapshot.rawEvent;
-    const pi = (rawEvent?.data?.object || eventSnapshot.payload) as any;
+    const pi = this.reconstructPaymentIntent(eventSnapshot);
     const paymentIdStr = pi?.metadata?.paymentId;
 
     if (!paymentIdStr) return;
@@ -317,7 +340,7 @@ export class MarketplaceWebhookService {
     rawEvent?: any;
   }): Promise<void> {
     const rawEvent = eventSnapshot.rawEvent;
-    const pi = (rawEvent?.data?.object || eventSnapshot.payload) as any;
+    const pi = this.reconstructPaymentIntent(eventSnapshot);
     const paymentIdStr = pi?.metadata?.paymentId;
 
     if (!paymentIdStr) return;

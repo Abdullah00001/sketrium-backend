@@ -4,6 +4,8 @@ import app from '../app';
 import { stripeWebhookRepository } from '../app/modules/payment/stripeWebhook.repository';
 import { stripeEventDispatcher } from '../app/modules/payment/stripeWebhook.dispatcher';
 import { StripeWebhookEvent } from '../app/modules/payment/stripeWebhook.model';
+import { marketplaceWebhookService } from '../app/modules/marketplace/marketplaceWebhook.service';
+import { Payment } from '../app/modules/marketplace/marketplacePayment.model';
 
 const mockConstructEvent = jest.fn();
 
@@ -380,16 +382,32 @@ describe('Stripe Webhook Foundation (Phase 1)', () => {
       // Restore all spies to allow real MongoDB persistence via the repository
       jest.restoreAllMocks();
 
+      const expectedPaymentIntentId = 'pi_123_regression';
+      const expectedAmount = 4500;
+      const expectedCurrency = 'usd';
+      const expectedStatus = 'succeeded';
+      const expectedPaymentId = '6ab3727e9420010cb945839d';
+      const expectedUserId = 'user_999';
+      const expectedFingerprint = 'fingerprint_xyz';
+
       const intentWithMetadataEvent = {
         ...sampleEventData,
         id: 'evt_real_mongo_intent',
         type: 'payment_intent.succeeded',
         data: {
           object: {
-            id: 'pi_123',
+            id: expectedPaymentIntentId,
             object: 'payment_intent',
+            amount: expectedAmount,
+            currency: expectedCurrency,
+            status: expectedStatus,
             metadata: {
-              paymentId: '6ab3727e9420010cb945839d'
+              paymentId: expectedPaymentId,
+              userId: expectedUserId,
+              platform: 'SKATRIUM_MARKETPLACE',
+              engineVersion: 'PHASE_4_MARKETPLACE',
+              paymentType: 'PRODUCT_CART',
+              checkoutFingerprint: expectedFingerprint,
             }
           }
         }
@@ -398,28 +416,62 @@ describe('Stripe Webhook Foundation (Phase 1)', () => {
       const { payloadBuffer, signature } = createSignedBuffer(intentWithMetadataEvent);
       setupConstructEventMock(intentWithMetadataEvent);
 
-      // We ONLY mock the dispatcher so we can intercept the payload read from MongoDB
+      // We will intercept validatePaymentIntentWebhook to inspect the reconstructed pi object
+      let reconstructedPi: any = null;
+      jest.spyOn(marketplaceWebhookService, 'validatePaymentIntentWebhook').mockImplementation((pi, payment) => {
+        reconstructedPi = pi;
+        return { valid: false, reason: 'METADATA_MISMATCH', details: 'Mocked to halt execution early' };
+      });
+
+      // Mock Payment.findById to allow flow to reach validatePaymentIntentWebhook
+      jest.spyOn(Payment, 'findById').mockResolvedValue({
+        _id: expectedPaymentId,
+        engineVersion: 'PHASE_4_MARKETPLACE',
+      } as any);
+
+      // We only mock the dispatcher to capture the claimed record right before it routes
       let dispatchedPayload: any = null;
       jest.spyOn(stripeEventDispatcher, 'dispatch').mockImplementation(async (record) => {
         dispatchedPayload = record;
+        // manually route to our handler to test the reconstruction
+        await marketplaceWebhookService.handlePaymentIntentSucceeded(record);
       });
 
-      const res = await request(app)
-        .post('/api/v1/payments/stripe/webhook')
-        .set('stripe-signature', signature)
-        .set('Content-Type', 'application/json')
-        .send(payloadBuffer);
+      try {
+        const res = await request(app)
+          .post('/api/v1/payments/stripe/webhook')
+          .set('stripe-signature', signature)
+          .set('Content-Type', 'application/json')
+          .send(payloadBuffer);
 
-      expect(res.status).toBe(200);
-      expect(dispatchedPayload).toBeDefined();
-      expect(dispatchedPayload.payload).toBeDefined();
-      
-      // Verify metadata survived strict Mongoose schema enforcement
-      expect(dispatchedPayload.payload.metadata).toBeDefined();
-      expect(dispatchedPayload.payload.metadata.paymentId).toBe('6ab3727e9420010cb945839d');
+        expect(res.status).toBe(200);
 
-      // Cleanup real Mongo persistence
-      await StripeWebhookEvent.deleteOne({ stripeEventId: 'evt_real_mongo_intent' });
+        // 1. Verify the persisted snapshot inside the claimed record
+        expect(dispatchedPayload).toBeDefined();
+        const payload = dispatchedPayload.payload;
+        expect(payload).toBeDefined();
+        expect(payload.objectId).toBe(expectedPaymentIntentId);
+        expect(payload.amount).toBe(expectedAmount);
+        expect(payload.currency).toBe(expectedCurrency);
+        expect(payload.status).toBe(expectedStatus);
+        expect(payload.metadata.paymentId).toBe(expectedPaymentId);
+        expect(payload.metadata.userId).toBe(expectedUserId);
+        expect(payload.metadata.platform).toBe('SKATRIUM_MARKETPLACE');
+        expect(payload.metadata.engineVersion).toBe('PHASE_4_MARKETPLACE');
+        expect(payload.metadata.paymentType).toBe('PRODUCT_CART');
+        expect(payload.metadata.checkoutFingerprint).toBe(expectedFingerprint);
+
+        // 2. Verify the reconstructed object sent to Phase 4B validator
+        expect(reconstructedPi).toBeDefined();
+        expect(reconstructedPi.id).toBe(expectedPaymentIntentId);
+        expect(reconstructedPi.amount).toBe(expectedAmount);
+        expect(reconstructedPi.currency).toBe(expectedCurrency);
+        expect(reconstructedPi.status).toBe(expectedStatus);
+        expect(reconstructedPi.metadata.paymentId).toBe(expectedPaymentId);
+      } finally {
+        // Cleanup real Mongo persistence
+        await StripeWebhookEvent.deleteOne({ stripeEventId: 'evt_real_mongo_intent' });
+      }
     });
   });
 });
