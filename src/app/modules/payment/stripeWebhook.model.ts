@@ -19,6 +19,7 @@ const stripeWebhookEventSchema = new Schema<IStripeWebhookEvent>(
       account: { type: String },
       objectId: { type: String },
       objectType: { type: String },
+      metadata: { type: Schema.Types.Mixed },
     },
     processingStatus: {
       type: String,

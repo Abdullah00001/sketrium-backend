@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import app from '../app';
 import { stripeWebhookRepository } from '../app/modules/payment/stripeWebhook.repository';
 import { stripeEventDispatcher } from '../app/modules/payment/stripeWebhook.dispatcher';
+import { StripeWebhookEvent } from '../app/modules/payment/stripeWebhook.model';
 
 const mockConstructEvent = jest.fn();
 
@@ -375,10 +376,13 @@ describe('Stripe Webhook Foundation (Phase 1)', () => {
       );
     });
 
-    it('16. Phase 4B Regression: Metadata survives sanitization and reaches dispatcher', async () => {
+    it('16. Phase 4B Regression: Metadata survives Mongoose sanitization and reaches dispatcher', async () => {
+      // Restore all spies to allow real MongoDB persistence via the repository
+      jest.restoreAllMocks();
+
       const intentWithMetadataEvent = {
         ...sampleEventData,
-        id: 'evt_intent_with_metadata',
+        id: 'evt_real_mongo_intent',
         type: 'payment_intent.succeeded',
         data: {
           object: {
@@ -390,33 +394,15 @@ describe('Stripe Webhook Foundation (Phase 1)', () => {
           }
         }
       };
-      
+
       const { payloadBuffer, signature } = createSignedBuffer(intentWithMetadataEvent);
       setupConstructEventMock(intentWithMetadataEvent);
 
+      // We ONLY mock the dispatcher so we can intercept the payload read from MongoDB
       let dispatchedPayload: any = null;
       jest.spyOn(stripeEventDispatcher, 'dispatch').mockImplementation(async (record) => {
         dispatchedPayload = record;
       });
-
-      jest.spyOn(stripeWebhookRepository, 'findByEventId').mockResolvedValue(null);
-      
-      // Capture the actual event data created by stripeWebhook.service.ts
-      let capturedEventRecord: any = null;
-      jest.spyOn(stripeWebhookRepository, 'createPendingEvent').mockImplementation(async (eventMetaData: any) => {
-        capturedEventRecord = {
-          ...eventMetaData,
-          processingStatus: 'PENDING',
-        };
-        return capturedEventRecord;
-      });
-      
-      // Return the dynamically captured record containing the actual sanitizedSnapshot
-      jest.spyOn(stripeWebhookRepository, 'claimProcessing').mockImplementation(async () => {
-        return capturedEventRecord;
-      });
-      
-      jest.spyOn(stripeWebhookRepository, 'markSuccess').mockResolvedValue({} as any);
 
       const res = await request(app)
         .post('/api/v1/payments/stripe/webhook')
@@ -426,8 +412,14 @@ describe('Stripe Webhook Foundation (Phase 1)', () => {
 
       expect(res.status).toBe(200);
       expect(dispatchedPayload).toBeDefined();
+      expect(dispatchedPayload.payload).toBeDefined();
+      
+      // Verify metadata survived strict Mongoose schema enforcement
       expect(dispatchedPayload.payload.metadata).toBeDefined();
       expect(dispatchedPayload.payload.metadata.paymentId).toBe('6ab3727e9420010cb945839d');
+
+      // Cleanup real Mongo persistence
+      await StripeWebhookEvent.deleteOne({ stripeEventId: 'evt_real_mongo_intent' });
     });
   });
 });
