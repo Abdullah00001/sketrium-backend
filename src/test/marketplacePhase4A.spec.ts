@@ -31,7 +31,7 @@ describe('Phase 4A — Payment Domain & Reservation Foundation Suite (V4 Correct
   });
 
   afterAll(async () => {
-    await mongoose.disconnect();
+    // Mongoose connection is shared via the imported `app`. Jest forceExit handles teardown.
   });
 
   beforeEach(async () => {

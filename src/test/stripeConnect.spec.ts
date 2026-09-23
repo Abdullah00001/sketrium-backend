@@ -24,6 +24,7 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
   let subscribedUserId: string;
   let unsubscribedUserId: string;
   let djUserId: string;
+  let anotherUserId: string;
 
   beforeAll(async () => {
     if (mongoose.connection.readyState === 0) {
@@ -79,21 +80,33 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
       config.jwt.jwt_access_secret as string,
     );
 
+    const anotherUser = await User.create({
+      email: 'another@connecttest.com',
+      password: 'password123',
+      fullName: 'Another User',
+      phoneNumber: '1234567899',
+      role: 'USER',
+      isPremium: true,
+      subscription: { status: 'active' },
+      country: 'US',
+    });
+    anotherUserId = anotherUser._id.toString();
+
     // Set token secret for tests
     (config.stripe as any).connect_token_secret = 'test_mandatory_token_secret_123';
   }, 30000);
 
   afterAll(async () => {
     await MerchantProfile.deleteMany({
-      user: { $in: [subscribedUserId, unsubscribedUserId, djUserId] },
+      user: { $in: [subscribedUserId, unsubscribedUserId, djUserId, anotherUserId] },
     });
     await OrganizerProfile.deleteMany({
-      user: { $in: [subscribedUserId, unsubscribedUserId, djUserId] },
+      user: { $in: [subscribedUserId, unsubscribedUserId, djUserId, anotherUserId] },
     });
     await User.deleteMany({
-      _id: { $in: [subscribedUserId, unsubscribedUserId, djUserId] },
+      _id: { $in: [subscribedUserId, unsubscribedUserId, djUserId, anotherUserId] },
     });
-    await mongoose.disconnect();
+    // Mongoose connection is shared via the imported `app`. Jest forceExit handles teardown.
   }, 30000);
 
   beforeEach(() => {
@@ -174,15 +187,22 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
       const resMerchant = await request(app)
         .post('/api/v1/connect/merchant/onboard')
         .set('Authorization', `Bearer ${subscribedUserToken}`);
+      console.log('Merchant Status:', resMerchant.status);
+      console.log('Merchant Body:', resMerchant.body);
       expect(resMerchant.status).toBe(200);
 
       const resOrganizer = await request(app)
         .post('/api/v1/connect/organizer/onboard')
         .set('Authorization', `Bearer ${subscribedUserToken}`);
+      console.log('Organizer Status:', resOrganizer.status);
+      console.log('Organizer Body:', resOrganizer.body);
       expect(resOrganizer.status).toBe(200);
 
       const mProfile = await MerchantProfile.findOne({ user: subscribedUserId });
       const oProfile = await OrganizerProfile.findOne({ user: subscribedUserId });
+
+      console.log('Merchant Profile:', mProfile);
+      console.log('Organizer Profile:', oProfile);
 
       expect(mProfile).toBeDefined();
       expect(oProfile).toBeDefined();
@@ -196,9 +216,9 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
 
   describe('Idempotency State Machine, Concurrency & Recovery', () => {
     it('5a. Concurrent NOT_STARTED requests: Promise.all concurrency test', async () => {
-      await MerchantProfile.deleteMany({ user: subscribedUserId });
+      await MerchantProfile.deleteMany({ user: anotherUserId });
       const profile = await stripeConnectService.getOrCreateProfile(
-        subscribedUserId,
+        anotherUserId,
         'MARCHANT',
       );
 
@@ -215,12 +235,14 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
     });
 
     it('5b. Concurrent FAILED requests: Promise.all concurrency test generates new key pair for 1 winner', async () => {
-      await MerchantProfile.deleteMany({ user: subscribedUserId });
+      await MerchantProfile.deleteMany({ user: anotherUserId });
+      const uniqueFailedOp = `failed_op_${Date.now()}_${Math.random()}`;
+      const uniqueFailedKey = `skatrium_connect_op_${uniqueFailedOp}`;
       const profile = await MerchantProfile.create({
-        user: subscribedUserId,
+        user: anotherUserId,
         accountCreationStatus: 'FAILED',
-        accountCreationOperationId: 'failed_op_old',
-        stripeIdempotencyKey: 'skatrium_connect_op_failed_op_old',
+        accountCreationOperationId: uniqueFailedOp,
+        stripeIdempotencyKey: uniqueFailedKey,
       });
 
       const results = await Promise.all([
@@ -234,17 +256,17 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
         results[1].profile.stripeIdempotencyKey,
       );
       expect(results[0].profile.stripeIdempotencyKey).not.toBe(
-        'skatrium_connect_op_failed_op_old',
+        uniqueFailedKey,
       );
     });
 
     it('5c. RECOVERY_REQUIRED & Stale CREATING Retry: Preserves exact same idempotency key across retries', async () => {
-      await MerchantProfile.deleteMany({ user: subscribedUserId });
-      const originalOpId = 'op_recovery_test_999';
+      await MerchantProfile.deleteMany({ user: anotherUserId });
+      const originalOpId = `op_recovery_test_${Date.now()}_${Math.random()}`;
       const originalKey = `skatrium_connect_op_${originalOpId}`;
 
       const profile = await MerchantProfile.create({
-        user: subscribedUserId,
+        user: anotherUserId,
         accountCreationStatus: 'RECOVERY_REQUIRED',
         accountCreationOperationId: originalOpId,
         stripeIdempotencyKey: originalKey,
@@ -262,36 +284,237 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
       expect(acquired.stripeIdempotencyKey).toBe(originalKey); // Preserved
     });
 
-    it('6. Metadata Reconciliation & Multiple-Account Collision Detection', async () => {
-      await MerchantProfile.deleteMany({ user: subscribedUserId });
-      mockStripe.accounts.search.mockResolvedValueOnce({
-        data: [{ id: 'acct_1' }, { id: 'acct_2' }],
+    it('6. Account Recovery via User Mapping (Merchant)', async () => {
+      await MerchantProfile.deleteMany({ user: anotherUserId });
+      await User.findByIdAndUpdate(anotherUserId, {
+        merchantStripeAccountId: 'acct_recovered_merchant',
+      });
+
+      mockStripe.accounts.retrieve.mockResolvedValueOnce({
+        id: 'acct_recovered_merchant',
+        details_submitted: true,
+        payouts_enabled: true,
+        capabilities: { transfers: 'active' },
+        requirements: { currently_due: [], past_due: [], eventually_due: [] },
+        metadata: {
+          skatriumUserId: anotherUserId,
+          skatriumRole: 'MARCHANT',
+          skatriumProfileId: 'old_profile_id',
+        },
       });
 
       const profile = await stripeConnectService.getOrCreateProfile(
-        subscribedUserId,
+        anotherUserId,
+        'MARCHANT',
+      );
+
+      const recovered = await stripeConnectService.reconcileOrRecoverAccount(
+        profile,
+        'MARCHANT',
+      );
+
+      expect(recovered).not.toBeNull();
+      expect(recovered.id).toBe('acct_recovered_merchant');
+      expect(mockStripe.accounts.retrieve).toHaveBeenCalledWith('acct_recovered_merchant');
+
+      const updatedProfile = await MerchantProfile.findById(profile._id);
+      expect(updatedProfile!.stripeConnectedAccountId).toBe('acct_recovered_merchant');
+      expect(updatedProfile!.accountCreationStatus).toBe('CREATED');
+    });
+
+    it('6b. Account Recovery via User Mapping (Organizer)', async () => {
+      const uniqueUser = await User.create({
+        email: `6b_${Date.now()}@connecttest.com`,
+        password: 'password123',
+        fullName: 'Test 6b',
+        role: 'USER',
+        isPremium: true,
+        country: 'US',
+      });
+      const uniqueId = uniqueUser._id.toString();
+
+      await User.findByIdAndUpdate(uniqueId, {
+        organizerStripeAccountId: 'acct_recovered_organizer',
+      });
+
+      mockStripe.accounts.retrieve.mockResolvedValueOnce({
+        id: 'acct_recovered_organizer',
+        details_submitted: true,
+        payouts_enabled: true,
+        capabilities: { transfers: 'active' },
+        requirements: { currently_due: [], past_due: [], eventually_due: [] },
+        metadata: {
+          skatriumUserId: uniqueId,
+          skatriumRole: 'ORGANIZER',
+          skatriumProfileId: 'old_profile_id',
+        },
+      });
+
+      const profile = await stripeConnectService.getOrCreateProfile(
+        uniqueId,
+        'ORGANIZER',
+      );
+
+      const recovered = await stripeConnectService.reconcileOrRecoverAccount(
+        profile,
+        'ORGANIZER',
+      );
+
+      expect(recovered).not.toBeNull();
+      expect(recovered.id).toBe('acct_recovered_organizer');
+
+      const updatedProfile = await OrganizerProfile.findById(profile._id);
+      expect(updatedProfile!.stripeConnectedAccountId).toBe('acct_recovered_organizer');
+    });
+
+    it('6c. Wrong user metadata (Ownership mismatch)', async () => {
+      const uniqueUser = await User.create({
+        email: `6c_${Date.now()}@connecttest.com`,
+        password: 'password123',
+        fullName: 'Test 6c',
+        role: 'USER',
+        isPremium: true,
+        country: 'US',
+      });
+      const uniqueId = uniqueUser._id.toString();
+
+      await User.findByIdAndUpdate(uniqueId, {
+        merchantStripeAccountId: 'acct_wrong_user',
+      });
+
+      mockStripe.accounts.retrieve.mockResolvedValueOnce({
+        id: 'acct_wrong_user',
+        metadata: {
+          skatriumUserId: 'some_other_user_id', // mismatch
+          skatriumRole: 'MARCHANT',
+        },
+      });
+
+      const profile = await stripeConnectService.getOrCreateProfile(
+        anotherUserId,
         'MARCHANT',
       );
 
       await expect(
         stripeConnectService.reconcileOrRecoverAccount(profile, 'MARCHANT'),
-      ).rejects.toThrow(/Multiple Stripe accounts match/i);
+      ).rejects.toThrow(/ownership mismatch/i);
 
       const updatedProfile = await MerchantProfile.findById(profile._id);
-      expect(updatedProfile!.accountCreationStatus).toBe(
-        'MANUAL_RECONCILIATION_REQUIRED',
+      expect(updatedProfile!.accountCreationStatus).toBe('MANUAL_RECONCILIATION_REQUIRED');
+    });
+
+    it('6d. Wrong role metadata (Role mismatch)', async () => {
+      await MerchantProfile.deleteMany({ user: anotherUserId });
+      await User.findByIdAndUpdate(anotherUserId, {
+        merchantStripeAccountId: 'acct_wrong_role',
+      });
+
+      mockStripe.accounts.retrieve.mockResolvedValueOnce({
+        id: 'acct_wrong_role',
+        metadata: {
+          skatriumUserId: anotherUserId,
+          skatriumRole: 'ORGANIZER', // requested MARCHANT
+        },
+      });
+
+      const profile = await stripeConnectService.getOrCreateProfile(
+        anotherUserId,
+        'MARCHANT',
       );
+
+      await expect(
+        stripeConnectService.reconcileOrRecoverAccount(profile, 'MARCHANT'),
+      ).rejects.toThrow(/mismatch/i);
+    });
+
+    it('6e. No stored account ID (normal creation path)', async () => {
+      await MerchantProfile.deleteMany({ user: anotherUserId });
+      await User.findByIdAndUpdate(anotherUserId, {
+        $unset: { merchantStripeAccountId: 1 },
+      });
+
+      const profile = await stripeConnectService.getOrCreateProfile(
+        anotherUserId,
+        'MARCHANT',
+      );
+
+      const recovered = await stripeConnectService.reconcileOrRecoverAccount(
+        profile,
+        'MARCHANT',
+      );
+      expect(recovered).toBeNull(); // Should return null to continue with creation
+    });
+
+    it('6f. Stripe retrieve failure / account-not-found (ambiguous recovery)', async () => {
+      await MerchantProfile.deleteMany({ user: anotherUserId });
+      await User.findByIdAndUpdate(anotherUserId, {
+        merchantStripeAccountId: 'acct_not_found',
+      });
+
+      mockStripe.accounts.retrieve.mockRejectedValueOnce(new Error('No such account: acct_not_found'));
+
+      const profile = await stripeConnectService.getOrCreateProfile(
+        anotherUserId,
+        'MARCHANT',
+      );
+
+      const recovered = await stripeConnectService.reconcileOrRecoverAccount(
+        profile,
+        'MARCHANT',
+      );
+
+      // It must catch the error, log a warning, and return null so the system can fall back to normal creation
+      expect(recovered).toBeNull();
+    });
+
+    it('6g. Successful account creation synchronizes User + Profile with same Stripe account ID', async () => {
+      const uniqueUser = await User.create({ email: `6g_${Date.now()}@connecttest.com`, password: 'password123', fullName: 'Test 6g', role: 'USER', isPremium: true, country: 'US' });
+      const uniqueId = uniqueUser._id.toString();
+
+
+      await User.findByIdAndUpdate(uniqueId, {
+        $unset: { organizerStripeAccountId: 1 },
+      });
+
+      const profile = await stripeConnectService.getOrCreateProfile(
+        uniqueId,
+        'ORGANIZER',
+      );
+
+      profile.stripeIdempotencyKey = 'some_key';
+
+      const user = await User.findById(uniqueId);
+
+      const newAccount = await stripeConnectService.createStripeAccount(
+        user!,
+        profile,
+        'ORGANIZER',
+      );
+
+      expect(newAccount).toBeDefined();
+      expect(newAccount.id).toMatch(/^acct_mock_/);
+
+      const updatedProfile = await OrganizerProfile.findById(profile._id);
+      expect(updatedProfile!.stripeConnectedAccountId).toBe(newAccount.id);
+
+      const updatedUser = await User.findById(uniqueId);
+      expect(updatedUser!.organizerStripeAccountId).toBe(newAccount.id);
     });
 
     it('7. Stale CREATING Lock Recovery: Reclaims operation if older than timeout', async () => {
-      await MerchantProfile.deleteMany({ user: subscribedUserId });
+      const uniqueUser = await User.create({ email: `7_${Date.now()}@connecttest.com`, password: 'password123', fullName: 'Test 7', role: 'USER', isPremium: true, country: 'US' });
+      const uniqueId = uniqueUser._id.toString();
+
+
       const staleDate = new Date(Date.now() - 360000); // 6 mins ago
+      const uniqueOpId = `old_op_${Date.now()}_${Math.random()}`;
+      const uniqueKey = `skatrium_connect_op_${uniqueOpId}`;
       const profile = await MerchantProfile.create({
-        user: subscribedUserId,
+        user: uniqueId,
         accountCreationStatus: 'CREATING',
         accountCreationStartedAt: staleDate,
-        accountCreationOperationId: 'old_op_123',
-        stripeIdempotencyKey: 'skatrium_connect_op_old_op_123',
+        accountCreationOperationId: uniqueOpId,
+        stripeIdempotencyKey: uniqueKey,
       });
 
       const { isOwner, profile: reclaimed } =
@@ -302,9 +525,7 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
 
       expect(isOwner).toBe(true);
       expect(reclaimed.accountCreationStatus).toBe('CREATING');
-      expect(reclaimed.stripeIdempotencyKey).toBe(
-        'skatrium_connect_op_old_op_123',
-      );
+      expect(reclaimed.stripeIdempotencyKey).toBe(uniqueKey);
     });
   });
 

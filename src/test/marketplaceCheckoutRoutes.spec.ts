@@ -37,7 +37,8 @@ describe('Phase 5B.1 — Marketplace Checkout HTTP Routes Integration Suite', ()
   });
 
   afterAll(async () => {
-    await mongoose.disconnect();
+    // Mongoose connection is shared across test suites via the imported `app`.
+    // Disconnecting here would corrupt subsequent suites. Jest forceExit handles teardown.
   });
 
   beforeEach(async () => {

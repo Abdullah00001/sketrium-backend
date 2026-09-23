@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { Model } from 'mongoose';
+import mongoose, { Model } from 'mongoose';
 import httpStatus from 'http-status';
 import AppError from '../../error/AppError';
 import config from '../../config';
@@ -155,30 +155,39 @@ export class StripeConnectService {
     const Model = this.getModel(role);
 
     try {
-      const searchResult = await stripe.accounts.search({
-        query: `metadata['skatriumProfileId']:'${profile._id!.toString()}'`,
-      });
+      const user = await User.findById(profile.user);
+      if (!user) return null;
 
-      if (searchResult.data.length > 1) {
-        // Multiple account collision detected -> set MANUAL_RECONCILIATION_REQUIRED
-        await Model.findByIdAndUpdate(profile._id, {
-          $set: {
-            accountCreationStatus: 'MANUAL_RECONCILIATION_REQUIRED',
-            accountCreationLastError: {
-              code: 'MULTIPLE_ACCOUNTS_FOUND',
-              message:
-                'Multiple Stripe accounts match the same profile metadata. Manual reconciliation required.',
+      const userAccountId =
+        role === 'MARCHANT'
+          ? user.merchantStripeAccountId
+          : user.organizerStripeAccountId;
+
+      if (userAccountId) {
+        const foundAccount = await stripe.accounts.retrieve(userAccountId);
+
+        // Verify ownership
+        const metadata = foundAccount.metadata || {};
+        if (
+          metadata.skatriumUserId !== profile.user.toString() ||
+          metadata.skatriumRole !== role
+        ) {
+          await Model.findByIdAndUpdate(profile._id, {
+            $set: {
+              accountCreationStatus: 'MANUAL_RECONCILIATION_REQUIRED',
+              accountCreationLastError: {
+                code: 'OWNERSHIP_MISMATCH',
+                message:
+                  'Recovered Stripe account ownership or role mismatch. Manual reconciliation required.',
+              },
             },
-          },
-        });
-        throw new AppError(
-          httpStatus.CONFLICT,
-          'Multiple Stripe accounts match this profile. Manual reconciliation required.',
-        );
-      }
+          });
+          throw new AppError(
+            httpStatus.CONFLICT,
+            'Recovered Stripe account ownership mismatch. Manual reconciliation required.'
+          );
+        }
 
-      if (searchResult.data.length === 1) {
-        const foundAccount = searchResult.data[0];
         const telemetry = evaluateStripeAccountStatus(foundAccount);
 
         await Model.findByIdAndUpdate(profile._id, {
@@ -196,7 +205,7 @@ export class StripeConnectService {
     } catch (err: any) {
       if (err instanceof AppError) throw err;
       console.warn(
-        `[StripeConnectService] Metadata search error during recovery: ${err.message}`,
+        `[StripeConnectService] Account recovery retrieve error: ${err.message}`
       );
     }
 
@@ -267,15 +276,46 @@ export class StripeConnectService {
 
       const telemetry = evaluateStripeAccountStatus(newAccount);
 
-      await Model.findByIdAndUpdate(profile._id, {
-        $set: {
-          stripeConnectedAccountId: newAccount.id,
-          accountCreationStatus: 'CREATED',
-          accountCreationLastError: null,
-          ...telemetry,
-          stripeLastSyncedAt: new Date(),
-        },
-      });
+      const session = await mongoose.startSession();
+      try {
+        session.startTransaction();
+
+        await Model.findByIdAndUpdate(
+          profile._id,
+          {
+            $set: {
+              stripeConnectedAccountId: newAccount.id,
+              accountCreationStatus: 'CREATED',
+              accountCreationLastError: null,
+              ...telemetry,
+              stripeLastSyncedAt: new Date(),
+            },
+          },
+          { session, new: true }
+        );
+
+        const userUpdateField =
+          role === 'MARCHANT'
+            ? 'merchantStripeAccountId'
+            : 'organizerStripeAccountId';
+
+        await User.findByIdAndUpdate(
+          user._id,
+          {
+            $set: {
+              [userUpdateField]: newAccount.id,
+            },
+          },
+          { session }
+        );
+
+        await session.commitTransaction();
+      } catch (transactionErr) {
+        await session.abortTransaction();
+        throw transactionErr;
+      } finally {
+        await session.endSession();
+      }
 
       return newAccount;
     } catch (err: any) {

@@ -52,7 +52,7 @@ describe('Stripe Webhook Foundation (Phase 1)', () => {
   });
 
   afterAll(async () => {
-    await mongoose.disconnect();
+    // Mongoose connection is shared via the imported `app`. Jest forceExit handles teardown.
   });
   const secret = 'whsec_mock_secret';
   const stripe = new Stripe('sk_test_mock_key');

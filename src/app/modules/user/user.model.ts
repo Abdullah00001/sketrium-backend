@@ -95,6 +95,12 @@ const UserSchema = new Schema<TUser, UserModel>(
       type: String,
       default: '',
     },
+    merchantStripeAccountId: {
+      type: String,
+    },
+    organizerStripeAccountId: {
+      type: String,
+    },
     howDidYouHear: {
       type: String,
       default: '',

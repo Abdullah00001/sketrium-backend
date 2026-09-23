@@ -39,7 +39,7 @@ describe('Phase 4C — Transfer Engine Architecture Suite', () => {
     stopMarketplaceTransferSweeper();
     await closeMarketplaceTransferWorker();
     await closeMarketplaceTransferQueue();
-    await mongoose.disconnect();
+    // Mongoose connection is shared via the imported `app`. Jest forceExit handles teardown.
   });
 
   afterEach(() => {

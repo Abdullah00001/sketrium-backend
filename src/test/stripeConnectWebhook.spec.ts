@@ -32,7 +32,7 @@ describe('Phase 3 — Stripe Connect Webhook & Status Synchronization Suite', ()
 
   afterAll(async () => {
     config.stripe.connect_webhook_secret = originalSecret;
-    await mongoose.disconnect();
+    // Mongoose connection is shared via the imported `app`. Jest forceExit handles teardown.
   });
 
   beforeEach(async () => {

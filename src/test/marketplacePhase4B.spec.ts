@@ -38,7 +38,7 @@ describe('Phase 4B — Stripe PaymentIntent Lifecycle & Webhook Suite', () => {
   afterAll(async () => {
     await closeMarketplaceReconciliationWorker();
     await closeMarketplaceReconciliationQueue();
-    await mongoose.disconnect();
+    // Mongoose connection is shared via the imported `app`. Jest forceExit handles teardown.
   });
 
   beforeEach(async () => {
