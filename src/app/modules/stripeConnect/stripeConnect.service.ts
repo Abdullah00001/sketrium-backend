@@ -388,6 +388,33 @@ export class StripeConnectService {
       // Step B: Reconcile / Recover existing account if present
       let account = await this.reconcileOrRecoverAccount(profile, role);
 
+      // Step B.2: Repair missing capabilities on recovered account
+      if (account) {
+        const caps = account.capabilities || {};
+        const needsCardPayments = caps.card_payments !== 'active';
+        const needsTransfers = caps.transfers !== 'active';
+
+        if (needsCardPayments || needsTransfers) {
+          const updatePayload: any = { capabilities: {} };
+          if (needsCardPayments) {
+            updatePayload.capabilities.card_payments = { requested: true };
+          }
+          if (needsTransfers) {
+            updatePayload.capabilities.transfers = { requested: true };
+          }
+
+          const stripe = getStripeClient();
+          try {
+            account = await stripe.accounts.update(account.id, updatePayload);
+          } catch (error: any) {
+            throw new AppError(
+              httpStatus.BAD_GATEWAY,
+              `Failed to repair capabilities on recovered account: ${error.message}`
+            );
+          }
+        }
+      }
+
       // Step C: If still no account, create via Stripe with persistent idempotency key
       if (!account) {
         account = await this.createStripeAccount(user, profile, role);

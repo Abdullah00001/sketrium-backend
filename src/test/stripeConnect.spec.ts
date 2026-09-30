@@ -142,6 +142,9 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
             disabled_reason: null,
           },
         }),
+        update: jest.fn().mockImplementation(async (id: string, payload: any) => {
+          return { id, ...payload };
+        }),
       },
       accountLinks: {
         create: jest.fn().mockImplementation(async (data: any) => {
@@ -526,6 +529,144 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
       expect(isOwner).toBe(true);
       expect(reclaimed.accountCreationStatus).toBe('CREATING');
       expect(reclaimed.stripeIdempotencyKey).toBe(uniqueKey);
+    });
+  });
+
+  describe('Existing Account Capability Repair', () => {
+    beforeEach(async () => {
+      // Clear profiles for the subscribed user so getOrCreateProfile yields a fresh one
+      await MerchantProfile.deleteMany({ user: subscribedUserId });
+      await OrganizerProfile.deleteMany({ user: subscribedUserId });
+    });
+
+    it('A. Existing account with both capabilities ACTIVE (update not called)', async () => {
+      // Mock retrieve to return an account with active capabilities
+      mockStripe.accounts.retrieve.mockResolvedValueOnce({
+        id: 'acct_mock_active',
+        metadata: { skatriumUserId: subscribedUserId, skatriumRole: 'MARCHANT' },
+        capabilities: { card_payments: 'active', transfers: 'active' },
+      });
+
+      // Provide existing mapping so it triggers recovery
+      await User.findByIdAndUpdate(subscribedUserId, { merchantStripeAccountId: 'acct_mock_active' });
+      const res = await request(app)
+        .post('/api/v1/connect/merchant/onboard')
+        .set('Authorization', `Bearer ${subscribedUserToken}`);
+
+      expect(res.status).toBe(200);
+      expect(mockStripe.accounts.retrieve).toHaveBeenCalledWith('acct_mock_active');
+      expect(mockStripe.accounts.update).not.toHaveBeenCalled(); // No repair needed
+      expect(mockStripe.accountLinks.create).toHaveBeenCalled();
+    });
+
+    it('B. Existing account with capabilities {} (update called for both)', async () => {
+      mockStripe.accounts.retrieve.mockResolvedValueOnce({
+        id: 'acct_mock_empty',
+        metadata: { skatriumUserId: subscribedUserId, skatriumRole: 'MARCHANT' },
+        capabilities: {}, // Empty
+      });
+
+      await User.findByIdAndUpdate(subscribedUserId, { merchantStripeAccountId: 'acct_mock_empty' });
+      const res = await request(app)
+        .post('/api/v1/connect/merchant/onboard')
+        .set('Authorization', `Bearer ${subscribedUserToken}`);
+
+      expect(res.status).toBe(200);
+      expect(mockStripe.accounts.update).toHaveBeenCalledWith('acct_mock_empty', {
+        capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
+      });
+    });
+
+    it('C. Existing account with only card_payments active (update called for transfers)', async () => {
+      mockStripe.accounts.retrieve.mockResolvedValueOnce({
+        id: 'acct_mock_card_only',
+        metadata: { skatriumUserId: subscribedUserId, skatriumRole: 'MARCHANT' },
+        capabilities: { card_payments: 'active' },
+      });
+
+      await User.findByIdAndUpdate(subscribedUserId, { merchantStripeAccountId: 'acct_mock_card_only' });
+      const res = await request(app)
+        .post('/api/v1/connect/merchant/onboard')
+        .set('Authorization', `Bearer ${subscribedUserToken}`);
+
+      expect(res.status).toBe(200);
+      expect(mockStripe.accounts.update).toHaveBeenCalledWith('acct_mock_card_only', {
+        capabilities: { transfers: { requested: true } },
+      });
+    });
+
+    it('D. Existing account with only transfers active (update called for card_payments)', async () => {
+      mockStripe.accounts.retrieve.mockResolvedValueOnce({
+        id: 'acct_mock_transfers_only',
+        metadata: { skatriumUserId: subscribedUserId, skatriumRole: 'MARCHANT' },
+        capabilities: { transfers: 'active' },
+      });
+
+      await User.findByIdAndUpdate(subscribedUserId, { merchantStripeAccountId: 'acct_mock_transfers_only' });
+      const res = await request(app)
+        .post('/api/v1/connect/merchant/onboard')
+        .set('Authorization', `Bearer ${subscribedUserToken}`);
+
+      expect(res.status).toBe(200);
+      expect(mockStripe.accounts.update).toHaveBeenCalledWith('acct_mock_transfers_only', {
+        capabilities: { card_payments: { requested: true } },
+      });
+    });
+
+    it('E. Stripe account update failure stops onboarding', async () => {
+      mockStripe.accounts.retrieve.mockResolvedValueOnce({
+        id: 'acct_mock_empty',
+        metadata: { skatriumUserId: subscribedUserId, skatriumRole: 'MARCHANT' },
+        capabilities: {},
+      });
+      mockStripe.accounts.update.mockRejectedValueOnce(new Error('Stripe API error'));
+
+      await User.findByIdAndUpdate(subscribedUserId, { merchantStripeAccountId: 'acct_mock_empty' });
+      const res = await request(app)
+        .post('/api/v1/connect/merchant/onboard')
+        .set('Authorization', `Bearer ${subscribedUserToken}`);
+
+      expect(res.status).toBe(502); // BAD_GATEWAY mapped by AppError
+      expect(mockStripe.accounts.update).toHaveBeenCalled();
+      expect(mockStripe.accountLinks.create).not.toHaveBeenCalled();
+      expect(mockStripe.accounts.create).not.toHaveBeenCalled(); // No replacement created
+    });
+
+    it('F/G. Existing Organizer account handles repair identically', async () => {
+      mockStripe.accounts.retrieve.mockResolvedValueOnce({
+        id: 'acct_mock_org',
+        metadata: { skatriumUserId: subscribedUserId, skatriumRole: 'ORGANIZER' },
+        capabilities: {},
+      });
+
+      await User.findByIdAndUpdate(subscribedUserId, { organizerStripeAccountId: 'acct_mock_org' });
+      const res = await request(app)
+        .post('/api/v1/connect/organizer/onboard')
+        .set('Authorization', `Bearer ${subscribedUserToken}`);
+
+      expect(res.status).toBe(200);
+      expect(mockStripe.accounts.update).toHaveBeenCalledWith('acct_mock_org', {
+        capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
+      });
+    });
+
+    it('H. No existing account triggers normal creation path with capabilities requested', async () => {
+      // Clear mappings
+      await User.findByIdAndUpdate(anotherUserId, { $unset: { merchantStripeAccountId: 1 } });
+      await MerchantProfile.deleteMany({ user: anotherUserId });
+
+      const res = await request(app)
+        .post('/api/v1/connect/merchant/onboard')
+        .set('Authorization', `Bearer ${jwt.sign({ id: anotherUserId, role: 'USER' }, config.jwt.jwt_access_secret as string)}`);
+
+      if (res.status !== 200) console.error('Test H failed with:', res.body);
+      expect(res.status).toBe(200);
+      expect(mockStripe.accounts.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          capabilities: { card_payments: { requested: true }, transfers: { requested: true } }
+        }),
+        expect.any(Object)
+      );
     });
   });
 
