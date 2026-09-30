@@ -33,7 +33,7 @@ import { getStripeClient } from '../app/utils/stripeClient';
 export const REPAIR_CONFIG = {
   targetUserId: '6a716168aac23c52e46aab8b',
   merchant: {
-    stripeAccountId: 'acct_1UHjFuPkiJFdtARd',
+    stripeAccountId: 'acct_1ULFL4PjRFay5PQ2',
     expectedSkId:   '6a716168aac23c52e46aab8b',
     expectedRole:   'MARCHANT',
   },
