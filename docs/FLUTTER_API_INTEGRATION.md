@@ -954,6 +954,9 @@ Flutter polls status -> Receives SUCCEEDED -> Shows Order Confirmation
 
 ## Remove profile or background pictures
 
+For Business Name, Flutter examples, response shapes and picture removal, see
+[Flutter Profile Integration](FLUTTER_PROFILE_INTEGRATION.md).
+
 Use the existing authenticated profile update endpoint:
 
 - Regular users: `PATCH /api/v1/users/update-profile`
