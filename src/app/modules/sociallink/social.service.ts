@@ -1,3 +1,4 @@
+import { getProfileImageRemoval, cleanupRemovedProfileImages } from '../../utils/profileImageRemoval';
 import AppError from '../../error/AppError';
 import httpStatus from 'http-status';
 import User from '../user/user.model';
@@ -174,10 +175,18 @@ const updateProfile = async (
   body: Record<string, unknown>,
   files: Record<string, Express.Multer.File[]> | undefined,
 ) => {
+  const removals = getProfileImageRemoval(body, {
+    image: files?.profileImage?.[0],
+    coverImage: files?.coverImage?.[0],
+  });
+  const existingImages = Object.keys(removals).length ? await User.findById(user.id) : null;
+  if (Object.keys(removals).length && !existingImages) {
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+  }
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const userUpdateData: Record<string, unknown> = {};
+    const userUpdateData: Record<string, unknown> = { ...removals };
 
     const userFields = [
       'fullName',
@@ -190,11 +199,19 @@ const updateProfile = async (
       'subscribeToEmails',
       'merchantLegalLink',
       'organizerLegalLink',
+      'businessName',
     ];
     for (const field of userFields) {
       if (body[field] !== undefined) {
         userUpdateData[field] = body[field];
       }
+    }
+
+    if ('businessName' in body) {
+      if (typeof body.businessName !== 'string' || !body.businessName.trim()) {
+        throw new AppError(httpStatus.BAD_REQUEST, 'Business name must be a nonblank string');
+      }
+      userUpdateData.businessName = body.businessName.trim();
     }
 
     if (user.role === 'ORGANIZER' && 'organizerLegalLink' in body) {
@@ -287,6 +304,7 @@ const updateProfile = async (
     }
 
     await session.commitTransaction();
+    if (existingImages) await cleanupRemovedProfileImages(existingImages, removals);
     return { user: updatedUser, socialLinks: updatedSocial };
   } catch (error) {
     await session.abortTransaction();
@@ -312,6 +330,7 @@ const getProfile = async (user: JwtPayload) => {
 export const register = async (payload: any) => {
   const {
     fullName,
+    businessName,
     email: rawEmail,
     password,
     confirmPassword,
@@ -337,6 +356,11 @@ export const register = async (payload: any) => {
     shoplink,
     file,
   } = payload;
+
+  if ((role === 'ORGANIZER' || businessName !== undefined) &&
+      (typeof businessName !== 'string' || !businessName.trim())) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Business name is required and must be a nonblank string');
+  }
 
   const email = rawEmail ? rawEmail.trim().toLowerCase() : '';
 
@@ -406,6 +430,7 @@ export const register = async (payload: any) => {
 
   const userObj = await User.create({
     fullName,
+    businessName,
     email,
     password,
     djname: djname || '',
@@ -538,6 +563,7 @@ export const verifyEmailregister = async (rawEmail: string, rawOtp: string) => {
     user: {
       _id: user._id,
       fullName: user.fullName,
+      businessName: user.businessName,
       email: user.email,
       role: user.role,
       image: user.image,

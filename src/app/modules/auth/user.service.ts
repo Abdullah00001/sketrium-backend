@@ -173,6 +173,7 @@ export const verifyEmailregister = async (email: string, code: string) => {
     termsAccepted,
     accountType,
     djname,
+    businessName,
   } = pending.payload;
 
   const user = await User.create({
@@ -186,6 +187,7 @@ export const verifyEmailregister = async (email: string, code: string) => {
     termsAccepted,
     accountType: accountType || 'emailvarifi',
     djname,
+    businessName,
     isVerified: true,
   });
 
@@ -292,6 +294,7 @@ export const verifyEmailregister = async (email: string, code: string) => {
   return {
     user: {
       id: user._id,
+      businessName: user.businessName,
       email: user.email,
       role: user.role,
       isVerified: user.isVerified,

@@ -1,3 +1,4 @@
+import { getProfileImageRemoval } from '../../utils/profileImageRemoval';
 import { Request, Response } from 'express';
 import catchAsync from '../../utils/catchAsync';
 import { userServices } from './user.service';
@@ -42,11 +43,6 @@ const switchAccount = catchAsync(async (req: Request, res: Response) => {
 const updateProfile = catchAsync(async (req: Request, res: Response) => {
   let image;
 
-  // Upload image if provided
-  if (req.file) {
-    image = await uploadToS3(req.file, 'profile/');
-  }
-
   // Check role
   const isAdmin = req.user.role === 'USER' || req.user.role === 'influencer';
 
@@ -65,6 +61,11 @@ const updateProfile = catchAsync(async (req: Request, res: Response) => {
     } catch (err) {
       console.error('Failed to parse req.body.data:', err);
     }
+  }
+
+  getProfileImageRemoval(parsedBody, { image: req.file });
+  if (req.file) {
+    image = await uploadToS3(req.file, 'profile/');
   }
 
   const updateData: Record<string, any> = {

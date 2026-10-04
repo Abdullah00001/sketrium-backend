@@ -496,7 +496,7 @@ const getAdminDashboard = async (
     isPast: false,
     date: { $gte: now },
   })
-    .populate('host', 'fullName image')
+    .populate('host', 'fullName image businessName')
     .populate('category', 'name')
     .sort({ date: 1 })
     .limit(5)

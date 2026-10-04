@@ -114,6 +114,7 @@ export const registerZodSchema = z.object({
 
     merchantLegalLink: z.string().optional(),
     organizerLegalLink: z.string().optional(),
+    businessName: z.string().trim().min(1, "Business name cannot be blank").optional(),
 
     subscribeToEmails: z.boolean().optional().default(false),
 
@@ -131,6 +132,9 @@ export const registerZodSchema = z.object({
   }, {
     message: "Appropriate legal link is required for organizers and merchants",
     path: ["role"], // Attach error to role or a generic path since it depends on the role
+  }).refine(data => data.role !== UserRole.ORGANIZER || !!data.businessName, {
+    message: "Business name is required for organizers",
+    path: ["businessName"],
   }),
 });
 

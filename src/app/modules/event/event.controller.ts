@@ -216,7 +216,7 @@ export const getAllCategories = catchAsync(async (req, res) => {
   const { category } = req.query;
 
   const result = await Event.find({ category })
-    .populate('host', 'fullName image')
+    .populate('host', 'fullName image businessName')
     .sort({ date: 1 });
 
   sendResponse(res, {

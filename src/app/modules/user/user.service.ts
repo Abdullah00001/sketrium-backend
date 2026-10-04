@@ -1,3 +1,4 @@
+import { getProfileImageRemoval, cleanupRemovedProfileImages } from '../../utils/profileImageRemoval';
 import AppError from '../../error/AppError';
 import httpStatus from 'http-status';
 import { addContactToBrevo } from '../../utils/mailSender';
@@ -56,6 +57,9 @@ const updateProfile = async (id: string, payload: Partial<TUser>) => {
     throw new AppError(httpStatus.NOT_FOUND, 'User not found');
   }
 
+  const removals = getProfileImageRemoval(payload);
+  const { removeProfileImage, removeCoverImage, ...profileUpdates } = payload;
+
   const restrictedFields = ['role', 'email'];
   restrictedFields.forEach(field => {
     if (field in payload) {
@@ -65,6 +69,13 @@ const updateProfile = async (id: string, payload: Partial<TUser>) => {
       );
     }
   });
+
+  if ('businessName' in payload) {
+    if (typeof payload.businessName !== 'string' || !payload.businessName.trim()) {
+      throw new AppError(httpStatus.BAD_REQUEST, 'Business name must be a nonblank string');
+    }
+    payload.businessName = payload.businessName.trim();
+  }
 
   if (user.role === 'ORGANIZER' && 'organizerLegalLink' in payload) {
     if (!payload.organizerLegalLink || payload.organizerLegalLink.trim().length === 0) {
@@ -79,9 +90,11 @@ const updateProfile = async (id: string, payload: Partial<TUser>) => {
   }
 
   // Allow updating image, fullName, gender
-  const updatedUser = await User.findByIdAndUpdate(id, payload, {
+  const updatedUser = await User.findByIdAndUpdate(id, { ...profileUpdates, ...removals }, {
     new: true,
   });
+
+  if (updatedUser) await cleanupRemovedProfileImages(user, removals);
 
   if (updatedUser && updatedUser.subscribeToEmails) {
     addContactToBrevo(updatedUser.email, updatedUser.fullName).catch(console.error);
@@ -665,7 +678,7 @@ const getUsersByRole = async (
     .skip(skip)
     .limit(limit)
     .select(
-      'fullName email image coverImage isActive country phoneNumber role accountType isVerified createdAt',
+      'fullName businessName email image coverImage isActive country phoneNumber role accountType isVerified createdAt',
     );
 
   const usersWithStats = await Promise.all(
@@ -738,7 +751,7 @@ const getOrganizerProfile = async (
 ) => {
   // ── User data ─────────────────────────────────────────────
   const user = await User.findById(organizerId).select(
-    'fullName email image coverImage about country phoneNumber role bio socialLinks isVerified createdAt',
+    'fullName businessName email image coverImage about country phoneNumber role bio socialLinks isVerified createdAt',
   );
   if (!user) throw new AppError(httpStatus.NOT_FOUND, 'User not found');
 
@@ -836,7 +849,7 @@ const getMarchantProfile = async (
   currentUserId?: string,
 ) => {
   const user = await User.findById(marchantId).select(
-    'fullName email image coverImage country phoneNumber  about role bio isVerified createdAt djname',
+    'fullName businessName email image coverImage country phoneNumber  about role bio isVerified createdAt djname',
   );
   if (!user) throw new AppError(httpStatus.NOT_FOUND, 'User not found');
 

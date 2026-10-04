@@ -91,6 +91,11 @@ const UserSchema = new Schema<TUser, UserModel>(
       type: String,
       default: '',
     },
+    businessName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     organizerLegalLink: {
       type: String,
       default: '',

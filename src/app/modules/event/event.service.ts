@@ -134,7 +134,7 @@ export const getAllEventsService = async (query: any) => {
 
   const events = await Event.find(filter)
     .select('title date time location attendees gallery coverImage')
-    .populate('host', 'fullName image')
+    .populate('host', 'fullName image businessName')
     .populate('attendees', 'name email profileImage')
     .sort({ date: 1 }) // upcoming events first
     .skip(skip)
@@ -375,7 +375,7 @@ export const getPastEventsService = async () => {
     date: { $lt: new Date() },
   })
     .select('title  date time  location  attendees gallery gallery coverImage')
-    .populate('host', 'fullName image email')
+    .populate('host', 'fullName image email businessName')
     .populate('attendees', 'fullName image email')
     .sort({ date: -1 });
   return events;
@@ -387,7 +387,7 @@ export const getEventDetailsService = async (
 ) => {
   // await updatePastEvents(); // ✅ event details এর আগে update করুন
   const event = await Event.findById(id)
-    .populate('host', 'fullName image email organizerLegalLink')
+    .populate('host', 'fullName image email organizerLegalLink businessName')
     .populate('attendees', 'fullName image email')
     .populate('reviews.user', 'fullName image');
 
@@ -742,7 +742,7 @@ const searchEvents = async (query: {
     .select(
       'title description date currency time country location attendees gallery price coverImage daySchedules eventType externalTicketUrl',
     )
-    .populate('host', 'image email fullName')
+    .populate('host', 'image email fullName businessName')
     .populate('attendees', 'image email fullName')
     .sort({ date: 1 })
     .skip(skip)
@@ -778,7 +778,7 @@ const getNearbyEvents = async (location: string) => {
     location: { $regex: location, $options: 'i' },
     date: { $gte: new Date() },
   })
-    .populate('host', 'name profileImage')
+    .populate('host', 'name profileImage businessName')
     .sort({ date: 1 })
     .limit(10);
 };
@@ -788,7 +788,7 @@ const getEventsByOrganizer = async (organizerId: string) => {
     isDeleted: { $ne: true },
     host: organizerId,
   })
-    .populate('host', 'name email profileImage')
+    .populate('host', 'name email profileImage businessName')
     .sort({ createdAt: -1 });
 };
 
@@ -802,7 +802,7 @@ const getEventsByOrganizer = async (organizerId: string) => {
 // ─── Get all upcoming events (isPast = false) ───────────────────────────────
 const getUpcomingEvents = async () => {
   const events = await Event.find({ isPast: false })
-    .populate('host', 'name email profileImage')
+    .populate('host', 'name email profileImage businessName')
     .sort({ date: 1 });
   return events;
 };
@@ -810,7 +810,7 @@ const getUpcomingEvents = async () => {
 // ─── Get all previous events (isPast = true) ────────────────────────────────
 const getPreviousEvents = async () => {
   const events = await Event.find({ isPast: true })
-    .populate('host', 'name email profileImage')
+    .populate('host', 'name email profileImage businessName')
     .sort({ date: -1 });
   return events;
 };
@@ -1344,7 +1344,7 @@ const getFeaturedEvents = async (page: number = 1, limit: number = 10) => {
     isDeleted: false,
   })
     .populate('category', 'name')
-    .populate('host', 'name profileImage')
+    .populate('host', 'name profileImage businessName')
     .populate('attendees', 'profileImage')
     .sort({ createdAt: -1 })
     .skip(skip)
@@ -1378,7 +1378,7 @@ const getTopEvents = async (page: number = 1, limit: number = 10) => {
     isDeleted: false,
   })
     .populate('category', 'name')
-    .populate('host', 'name profileImage')
+    .populate('host', 'name profileImage businessName')
     .populate('attendees', 'profileImage')
     .sort({ createdAt: -1 })
     .skip(skip)
@@ -1405,7 +1405,7 @@ const getHighlightedEvents = async (page: number = 1, limit: number = 10) => {
     isDeleted: false,
   })
     .populate('category', 'name')
-    .populate('host', 'name profileImage')
+    .populate('host', 'name profileImage businessName')
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);
@@ -1431,7 +1431,7 @@ const getPinnedEvents = async (page: number = 1, limit: number = 10) => {
     isDeleted: false,
   })
     .populate('category', 'name')
-    .populate('host', 'name profileImage')
+    .populate('host', 'name profileImage businessName')
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);
@@ -1468,7 +1468,7 @@ const getHomeEvents = async (
       },
     })
       .populate('category', 'name')
-      .populate('host', 'fullName image')
+      .populate('host', 'fullName image businessName')
       .populate('attendees', 'image')
       .skip(skip)
       .limit(limit)
@@ -1487,7 +1487,7 @@ const getHomeEvents = async (
       ],
     })
       .populate('category', 'name')
-      .populate('host', 'fullName image')
+      .populate('host', 'fullName image businessName')
       .populate('attendees', 'image')
       .sort({ createdAt: -1 })
       .select(
@@ -1521,7 +1521,7 @@ const getHomeEvents = async (
     isDeleted: false,
   })
     .populate('category', 'name')
-    .populate('host', 'fullName image')
+    .populate('host', 'fullName image businessName')
     .populate('attendees', 'image')
     .sort({ createdAt: -1 })
     .skip(skip)
@@ -1907,7 +1907,7 @@ const getUpcomingEventsByHost = async (
   const total = await Event.countDocuments(query);
 
   const events = await Event.find(query)
-    .populate('host', 'fullName email image')
+    .populate('host', 'fullName email image businessName')
     .populate('category', 'name')
     .sort({ date: 1 })
     .skip(skip)
@@ -1947,7 +1947,7 @@ const getEventsByHost = async (
 
   const events = await Event.find(filter)
     .populate('category', 'name')
-    .populate('host', 'fullName email image')
+    .populate('host', 'fullName email image businessName')
     .populate('attendees', 'fullName email image')
     .sort({ createdAt: -1 })
     .skip(skip)

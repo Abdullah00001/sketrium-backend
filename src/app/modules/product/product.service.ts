@@ -8,7 +8,7 @@ import httpStatus from 'http-status';
 export const getAllProductsService = async (req: any) => {
   const userId = req.user?.id;
   const products = await Product.find({ host: userId })
-    .populate('host', 'fullName image')
+    .populate('host', 'fullName image businessName')
     .sort({ createdAt: -1 });
   return products;
 };
@@ -337,7 +337,7 @@ const getRelatedProducts = async (
     category: { $regex: category, $options: 'i' },
     isDeleted: { $ne: true },
   })
-    .populate('host', 'name profileImage')
+    .populate('host', 'name profileImage businessName')
     .limit(limit);
 };
 
@@ -1462,7 +1462,7 @@ const getProductsByHost = async (
 
   const products = await Product.find(filter)
     .populate('category', 'name')
-    .populate('host', 'fullName email image')
+    .populate('host', 'fullName email image businessName')
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);

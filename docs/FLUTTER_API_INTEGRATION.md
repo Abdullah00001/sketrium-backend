@@ -951,3 +951,29 @@ Flutter polls status -> Receives SUCCEEDED -> Shows Order Confirmation
 - Payment confirmation
 - Seller transfers
 - Final payment status
+
+## Remove profile or background pictures
+
+Use the existing authenticated profile update endpoint:
+
+- Regular users: `PATCH /api/v1/users/update-profile`
+- Organisers, merchants and DJs: `PATCH /api/v1/social/update-profile`
+
+Send JSON or multipart form-data with `removeProfileImage: true` to remove the
+profile picture, or `removeCoverImage: true` to remove the background/cover
+picture. Both flags can be sent together. Multipart accepts the strings
+`"true"` and `"false"`; JSON accepts booleans. Omitted or false flags preserve
+existing pictures.
+
+```json
+{
+  "removeProfileImage": true,
+  "removeCoverImage": true
+}
+```
+
+The updated user returns `image: null` and/or `coverImage: null`. Render the
+placeholder when a picture is null. Repeating removal succeeds even if the
+picture is already absent. Uploading and removing the same picture in one
+request returns HTTP 400; removing one while uploading the other is supported.
+The client should provide a Remove action for each picture using these flags.

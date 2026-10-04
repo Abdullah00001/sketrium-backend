@@ -63,6 +63,7 @@ export interface TUser {
   adminapproval?: 'pending' | 'approved' | 'rejected';
   merchantLegalLink?: string;
   organizerLegalLink?: string;
+  businessName?: string;
   merchantStripeAccountId?: string;
   organizerStripeAccountId?: string;
   howDidYouHear?: string;
