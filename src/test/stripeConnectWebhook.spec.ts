@@ -28,7 +28,7 @@ describe('Phase 3 — Stripe Connect Webhook & Status Synchronization Suite', ()
     if (mongoose.connection.readyState === 0) {
       await mongoose.connect(config.database_url as string);
     }
-  });
+  }, 30000);
 
   afterAll(async () => {
     config.stripe.connect_webhook_secret = originalSecret;
