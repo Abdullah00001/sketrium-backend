@@ -242,22 +242,39 @@ export class MarketplaceTransferService {
 
     // Exactly 0 matches -> Execute Stripe API Call using Persistent Idempotency Key
     try {
-      const transfer = await stripe.transfers.create(
-        {
-          amount: claimedOp.amount,
-          currency: claimedOp.currency.toLowerCase(),
-          destination: claimedOp.stripeConnectedAccountId,
-          source_transaction: claimedOp.stripeChargeId,
-          transfer_group: claimedOp.paymentId.toString(),
-          metadata: {
-            paymentId: claimedOp.paymentId.toString(),
-            allocationId: claimedOp.allocationId,
-            sellerUserId: claimedOp.sellerUserId.toString(),
-            engineVersion: 'PHASE_4_MARKETPLACE',
-          },
+      const transferPayload: any = {
+        amount: claimedOp.amount,
+        currency: claimedOp.currency.toLowerCase(),
+        destination: claimedOp.stripeConnectedAccountId,
+        source_transaction: claimedOp.stripeChargeId,
+        transfer_group: claimedOp.paymentId.toString(),
+        metadata: {
+          paymentId: claimedOp.paymentId.toString(),
+          allocationId: claimedOp.allocationId,
+          sellerUserId: claimedOp.sellerUserId.toString(),
+          engineVersion: 'PHASE_4_MARKETPLACE',
         },
-        { idempotencyKey: claimedOp.stripeIdempotencyKey }
-      );
+      };
+
+      let transfer;
+      try {
+        transfer = await stripe.transfers.create(
+          transferPayload,
+          { idempotencyKey: claimedOp.stripeIdempotencyKey }
+        );
+      } catch (innerErr: any) {
+        const errMsg = innerErr.message || '';
+        if (errMsg.includes('currency of source_transaction') || errMsg.includes('must be the same as the transfer currency')) {
+          logger.warn(`Currency mismatch detected for op ${claimedOp._id}. Dropping source_transaction and retrying...`);
+          delete transferPayload.source_transaction;
+          transfer = await stripe.transfers.create(
+            transferPayload,
+            { idempotencyKey: claimedOp.stripeIdempotencyKey + '_fb' }
+          );
+        } else {
+          throw innerErr;
+        }
+      }
 
       const finalOp = await TransferOperation.findOneAndUpdate(
         { _id: claimedOp._id },
