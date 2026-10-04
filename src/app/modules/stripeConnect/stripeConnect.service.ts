@@ -397,6 +397,9 @@ export class StripeConnectService {
       );
     }
 
+    let account: any;
+    let accountCreated = false;
+
     // Ensure Stripe Connected Account exists
     if (
       !profile.stripeConnectedAccountId ||
@@ -410,44 +413,50 @@ export class StripeConnectService {
       profile = updatedProfile;
 
       // Step B: Reconcile / Recover existing account if present
-      let account = await this.reconcileOrRecoverAccount(profile, role);
-
-      // Step B.2: Repair missing capabilities on recovered account
-      if (account) {
-        const caps = account.capabilities || {};
-        const needsCardPayments = caps.card_payments !== 'active';
-        const needsTransfers = caps.transfers !== 'active';
-
-        if (needsCardPayments || needsTransfers) {
-          const updatePayload: any = { capabilities: {} };
-          if (needsCardPayments) {
-            updatePayload.capabilities.card_payments = { requested: true };
-          }
-          if (needsTransfers) {
-            updatePayload.capabilities.transfers = { requested: true };
-          }
-
-          const stripe = getStripeClient();
-          try {
-            account = await stripe.accounts.update(account.id, updatePayload);
-          } catch (error: any) {
-            throw new AppError(
-              httpStatus.BAD_GATEWAY,
-              `Failed to repair capabilities on recovered account: ${error.message}`
-            );
-          }
-        }
-      }
+      account = await this.reconcileOrRecoverAccount(profile, role);
 
       // Step C: If still no account, create via Stripe with persistent idempotency key
       if (!account) {
         account = await this.createStripeAccount(user, profile, role);
+        accountCreated = true;
       }
 
       // Reload updated profile
       const Model = this.getModel(role);
       const reloadedProfile = await Model.findById(profile._id);
       profile = reloadedProfile!;
+    }
+
+    const stripe = getStripeClient();
+    if (!account) {
+      account = await stripe.accounts.retrieve(profile.stripeConnectedAccountId!);
+    }
+
+    // New accounts already request capabilities during creation.
+    // Existing CREATED profiles need the same repair as recovered accounts.
+    if (!accountCreated) {
+      const caps = account.capabilities || {};
+      const needsCardPayments = caps.card_payments !== 'active';
+      const needsTransfers = caps.transfers !== 'active';
+
+      if (needsCardPayments || needsTransfers) {
+        const updatePayload: any = { capabilities: {} };
+        if (needsCardPayments) {
+          updatePayload.capabilities.card_payments = { requested: true };
+        }
+        if (needsTransfers) {
+          updatePayload.capabilities.transfers = { requested: true };
+        }
+
+        try {
+          account = await stripe.accounts.update(account.id, updatePayload);
+        } catch (error: any) {
+          throw new AppError(
+            httpStatus.BAD_GATEWAY,
+            `Failed to repair capabilities on connected account: ${error.message}`,
+          );
+        }
+      }
     }
 
     // Generate single-use onboarding token
@@ -466,7 +475,6 @@ export class StripeConnectService {
       config.stripe.connect_refresh_url ||
       `${backendUrl}/api/v1/connect/refresh?token=${rawToken}`;
 
-    const stripe = getStripeClient();
     const accountLink = await stripe.accountLinks.create({
       account: profile.stripeConnectedAccountId!,
       refresh_url: refreshUrl,
