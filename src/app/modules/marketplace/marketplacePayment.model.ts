@@ -39,6 +39,7 @@ const paymentSchema = new Schema<IPayment>(
       required: true,
     },
     paymentIntentId: { type: String, default: undefined },
+    stripeChargeId: { type: String, default: null },
     stripeIdempotencyKey: { type: String, default: undefined },
     stripePaymentIntentOperationStatus: {
       type: String,

@@ -150,6 +150,7 @@ describe('Phase 4C — Transfer Engine Architecture Suite', () => {
       currency: 'USD',
       status: 'SUCCEEDED',
       paymentIntentId: `pi_test_${Date.now()}_${Math.floor(Math.random() * 100000)}`,
+      stripeChargeId: `ch_mock_${Date.now()}_${Math.floor(Math.random() * 100000)}`,
       checkoutFingerprint: `fp_${Date.now()}_${Math.floor(Math.random() * 100000)}`,
       engineVersion: 'PHASE_4_MARKETPLACE',
       allocations: formattedAllocations,
@@ -1440,5 +1441,94 @@ describe('Phase 4C — Transfer Engine Architecture Suite', () => {
     expect(updatedOp?.reversedAmount).toBe(5000);
     expect(updatedOp?.remainingAmount).toBe(0);
     expect(updatedOp?.reversals[0].stripeReversalId).toBe(revId);
+  });
+  // --- SOURCE_TRANSACTION / CHARGE ID AUDIT TESTS ---
+
+  it('41. should copy stripeChargeId from Payment to TransferOperation correctly', async () => {
+    const payment = await seedSucceededPayment([
+      {
+        allocationId: `alloc_copy_charge_${Date.now()}`,
+        sellerUserId: seller1Id,
+        sellerRole: 'MERCHANT',
+        stripeConnectedAccountId: acct1,
+        amount: 5000,
+        purchasedItems: [],
+      },
+    ], 5000);
+
+    // Explicitly set stripeChargeId
+    await Payment.updateOne({ _id: payment._id }, { $set: { stripeChargeId: 'ch_test_audit_123' } });
+
+    const ops = await marketplaceTransferService.createTransferOperationsForPayment(payment._id);
+    expect(ops.length).toBe(1);
+    expect(ops[0].stripeChargeId).toBe('ch_test_audit_123');
+  });
+
+  it('42. worker should pass source_transaction = stripeChargeId to Stripe API', async () => {
+    const payment = await seedSucceededPayment([
+      {
+        allocationId: `alloc_worker_charge_${Date.now()}`,
+        sellerUserId: seller1Id,
+        sellerRole: 'MERCHANT',
+        stripeConnectedAccountId: acct1,
+        amount: 5000,
+        purchasedItems: [],
+      },
+    ], 5000);
+
+    await Payment.updateOne({ _id: payment._id }, { $set: { stripeChargeId: 'ch_worker_123' } });
+
+    const ops = await marketplaceTransferService.createTransferOperationsForPayment(payment._id);
+    const op = ops[0];
+
+    const stripe = require('../app/utils/stripeClient').getStripeClient();
+    const mockTransfersCreate = jest.spyOn(stripe.transfers, 'create').mockResolvedValue({
+      id: 'tr_worker_123',
+      created: Math.floor(Date.now() / 1000),
+    } as any);
+
+    const executedOp = await marketplaceTransferService.executeTransferOperation(op._id.toString());
+
+    expect(mockTransfersCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amount: 5000,
+        destination: acct1,
+        source_transaction: 'ch_worker_123',
+      }),
+      expect.objectContaining({
+        idempotencyKey: op.stripeIdempotencyKey,
+      })
+    );
+    expect(executedOp.status).toBe('CREATED');
+    mockTransfersCreate.mockRestore();
+  });
+
+  it('43. worker should fail safely if stripeChargeId is missing', async () => {
+    const payment = await seedSucceededPayment([
+      {
+        allocationId: `alloc_missing_charge_${Date.now()}`,
+        sellerUserId: seller1Id,
+        sellerRole: 'MERCHANT',
+        stripeConnectedAccountId: acct1,
+        amount: 5000,
+        purchasedItems: [],
+      },
+    ], 5000);
+
+    // Deliberately set to null
+    await Payment.updateOne({ _id: payment._id }, { $set: { stripeChargeId: null } });
+
+    const ops = await marketplaceTransferService.createTransferOperationsForPayment(payment._id);
+    const op = ops[0];
+
+    const stripe = require('../app/utils/stripeClient').getStripeClient();
+    const mockTransfersCreate = jest.spyOn(stripe.transfers, 'create');
+
+    const executedOp = await marketplaceTransferService.executeTransferOperation(op._id.toString());
+
+    expect(mockTransfersCreate).not.toHaveBeenCalled();
+    expect(executedOp.status).toBe('RECONCILIATION_REQUIRED');
+    expect(executedOp.reconciliationReason).toBe('STRIPE_API_UNCERTAIN');
+    mockTransfersCreate.mockRestore();
   });
 });

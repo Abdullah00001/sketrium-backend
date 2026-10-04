@@ -32,6 +32,7 @@ export interface ITransferOperation extends Document {
   currency: string;
   status: TransferOperationStatus;
   stripeIdempotencyKey: string;
+  stripeChargeId?: string | null;
   stripeTransferId?: string | null;
   transferCreatedAt?: Date | null;
   lockVersion: number;

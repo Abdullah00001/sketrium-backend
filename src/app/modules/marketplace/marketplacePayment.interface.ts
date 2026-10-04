@@ -71,6 +71,7 @@ export interface IPayment extends Document {
   engineVersion: EngineVersion;
   paymentType: PaymentType;
   paymentIntentId?: string | null;
+  stripeChargeId?: string | null;
   stripeIdempotencyKey?: string | null;
   stripePaymentIntentOperationStatus?: StripePaymentIntentOperationStatus;
   reconciliationReason?: ReconciliationReason | null;

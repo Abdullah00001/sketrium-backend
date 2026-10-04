@@ -79,6 +79,10 @@ export class MarketplaceWebhookService {
       return { valid: false, reason: 'METADATA_MISMATCH', details: 'metadata.checkoutFingerprint mismatch' };
     }
 
+    if (pi.status === 'succeeded' && !pi.latest_charge && !pi.latestCharge) {
+      return { valid: false, reason: 'STRIPE_API_UNCERTAIN', details: 'Missing latest_charge in succeeded PaymentIntent' };
+    }
+
     return { valid: true };
   }
 
@@ -193,6 +197,7 @@ export class MarketplaceWebhookService {
             $set: {
               status: 'SUCCEEDED',
               paymentIntentId: pi.id,
+              stripeChargeId: pi.latest_charge || pi.latestCharge || null,
               succeededAt: new Date(),
               stripeLastEventCreatedAt: eventDate,
               reconciliationReason: null, // BLOCKER 2 FIX: Explicitly clear reconciliationReason upon resolution to SUCCEEDED

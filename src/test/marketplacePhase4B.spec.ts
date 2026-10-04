@@ -130,6 +130,7 @@ describe('Phase 4B — Stripe PaymentIntent Lifecycle & Webhook Suite', () => {
       client_secret: overrides.client_secret || 'pi_test_fake_123_secret_abc',
       metadata: overrides.metadata || {},
       created: overrides.created || Math.floor(Date.now() / 1000),
+      latest_charge: (overrides as any).latest_charge || 'ch_fake_123',
     } as any;
   }
 

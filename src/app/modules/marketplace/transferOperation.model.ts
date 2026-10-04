@@ -35,6 +35,7 @@ const transferOperationSchema = new Schema<ITransferOperation>(
       required: true,
     },
     stripeIdempotencyKey: { type: String, required: true, trim: true },
+    stripeChargeId: { type: String, default: null, trim: true },
     stripeTransferId: { type: String, default: null, trim: true },
     transferCreatedAt: { type: Date, default: null },
     lockVersion: { type: Number, default: 0, required: true },

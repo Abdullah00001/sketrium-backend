@@ -63,6 +63,7 @@ export class StripeWebhookService {
       amount: (event.data?.object as any)?.amount ?? undefined,
       currency: (event.data?.object as any)?.currency ?? undefined,
       status: (event.data?.object as any)?.status ?? undefined,
+      latestCharge: (event.data?.object as any)?.latest_charge ?? undefined,
     };
 
     const eventMetaData = {

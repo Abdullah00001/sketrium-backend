@@ -13,6 +13,7 @@ export interface ISanitizedStripeSnapshot {
   amount?: number;
   currency?: string;
   status?: string;
+  latestCharge?: string;
 }
 
 export interface IStripeStructuredError {

@@ -23,6 +23,7 @@ const stripeWebhookEventSchema = new Schema<IStripeWebhookEvent>(
       amount: { type: Number },
       currency: { type: String },
       status: { type: String },
+      latestCharge: { type: String },
     },
     processingStatus: {
       type: String,

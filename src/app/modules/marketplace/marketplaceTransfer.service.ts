@@ -46,6 +46,7 @@ export class MarketplaceTransferService {
               currency: payment.currency,
               status: initialStatus,
               stripeIdempotencyKey: idempotencyKey,
+              stripeChargeId: payment.stripeChargeId,
               stripeTransferId: null,
               executionSkipReason: executionSkipReason,
               originalAmount: alloc.amount,
@@ -224,6 +225,21 @@ export class MarketplaceTransferService {
       return finalOp || claimedOp;
     }
 
+    if (!claimedOp.stripeChargeId) {
+      logger.error(`TransferWorker: Missing stripeChargeId for op ${claimedOp._id}`);
+      const finalOp = await TransferOperation.findOneAndUpdate(
+        { _id: claimedOp._id },
+        {
+          $set: {
+            status: 'RECONCILIATION_REQUIRED',
+            reconciliationReason: 'STRIPE_API_UNCERTAIN',
+          },
+        },
+        { new: true }
+      );
+      return finalOp || claimedOp;
+    }
+
     // Exactly 0 matches -> Execute Stripe API Call using Persistent Idempotency Key
     try {
       const transfer = await stripe.transfers.create(
@@ -231,6 +247,7 @@ export class MarketplaceTransferService {
           amount: claimedOp.amount,
           currency: claimedOp.currency.toLowerCase(),
           destination: claimedOp.stripeConnectedAccountId,
+          source_transaction: claimedOp.stripeChargeId,
           transfer_group: claimedOp.paymentId.toString(),
           metadata: {
             paymentId: claimedOp.paymentId.toString(),
@@ -263,11 +280,13 @@ export class MarketplaceTransferService {
       const statusCode = err.statusCode || err.raw?.statusCode;
 
       const isDefinitive =
-        ['amount_too_small', 'account_invalid', 'transfers_not_allowed', 'currency_mismatch', 'account_closed'].includes(
-          errCode
-        ) ||
-        statusCode === 400 ||
-        statusCode === 404;
+        (
+          ['amount_too_small', 'account_invalid', 'transfers_not_allowed', 'currency_mismatch', 'account_closed'].includes(
+            errCode
+          ) ||
+          statusCode === 400 ||
+          statusCode === 404
+        ) && errCode !== 'balance_insufficient';
 
       if (isDefinitive) {
         await TransferOperation.updateOne(
