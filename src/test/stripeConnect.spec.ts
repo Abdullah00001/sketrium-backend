@@ -93,18 +93,25 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
     anotherUserId = anotherUser._id.toString();
 
     // Set token secret for tests
-    (config.stripe as any).connect_token_secret = 'test_mandatory_token_secret_123';
+    (config.stripe as any).connect_token_secret =
+      'test_mandatory_token_secret_123';
   }, 30000);
 
   afterAll(async () => {
     await MerchantProfile.deleteMany({
-      user: { $in: [subscribedUserId, unsubscribedUserId, djUserId, anotherUserId] },
+      user: {
+        $in: [subscribedUserId, unsubscribedUserId, djUserId, anotherUserId],
+      },
     });
     await OrganizerProfile.deleteMany({
-      user: { $in: [subscribedUserId, unsubscribedUserId, djUserId, anotherUserId] },
+      user: {
+        $in: [subscribedUserId, unsubscribedUserId, djUserId, anotherUserId],
+      },
     });
     await User.deleteMany({
-      _id: { $in: [subscribedUserId, unsubscribedUserId, djUserId, anotherUserId] },
+      _id: {
+        $in: [subscribedUserId, unsubscribedUserId, djUserId, anotherUserId],
+      },
     });
     // Mongoose connection is shared via the imported `app`. Jest forceExit handles teardown.
   }, 30000);
@@ -115,21 +122,23 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
     mockStripe = {
       accounts: {
         search: jest.fn().mockResolvedValue({ data: [] }),
-        create: jest.fn().mockImplementation(async (data: any, options: any) => {
-          return {
-            id: `acct_mock_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-            details_submitted: false,
-            payouts_enabled: false,
-            capabilities: { transfers: 'inactive' },
-            requirements: {
-              currently_due: ['individual.ssn'],
-              past_due: [],
-              eventually_due: [],
-              disabled_reason: null,
-            },
-            metadata: data.metadata,
-          };
-        }),
+        create: jest
+          .fn()
+          .mockImplementation(async (data: any, options: any) => {
+            return {
+              id: `acct_mock_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+              details_submitted: false,
+              payouts_enabled: false,
+              capabilities: { transfers: 'inactive' },
+              requirements: {
+                currently_due: ['individual.ssn'],
+                past_due: [],
+                eventually_due: [],
+                disabled_reason: null,
+              },
+              metadata: data.metadata,
+            };
+          }),
         retrieve: jest.fn().mockResolvedValue({
           id: 'acct_mock_existing',
           details_submitted: true,
@@ -142,9 +151,11 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
             disabled_reason: null,
           },
         }),
-        update: jest.fn().mockImplementation(async (id: string, payload: any) => {
-          return { id, ...payload };
-        }),
+        update: jest
+          .fn()
+          .mockImplementation(async (id: string, payload: any) => {
+            return { id, ...payload };
+          }),
       },
       accountLinks: {
         create: jest.fn().mockImplementation(async (data: any) => {
@@ -201,8 +212,12 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
       console.log('Organizer Body:', resOrganizer.body);
       expect(resOrganizer.status).toBe(200);
 
-      const mProfile = await MerchantProfile.findOne({ user: subscribedUserId });
-      const oProfile = await OrganizerProfile.findOne({ user: subscribedUserId });
+      const mProfile = await MerchantProfile.findOne({
+        user: subscribedUserId,
+      });
+      const oProfile = await OrganizerProfile.findOne({
+        user: subscribedUserId,
+      });
 
       console.log('Merchant Profile:', mProfile);
       console.log('Organizer Profile:', oProfile);
@@ -226,11 +241,17 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
       );
 
       const results = await Promise.all([
-        stripeConnectService.acquireCreationOperation(profile._id!.toString(), 'MARCHANT'),
-        stripeConnectService.acquireCreationOperation(profile._id!.toString(), 'MARCHANT'),
+        stripeConnectService.acquireCreationOperation(
+          profile._id!.toString(),
+          'MARCHANT',
+        ),
+        stripeConnectService.acquireCreationOperation(
+          profile._id!.toString(),
+          'MARCHANT',
+        ),
       ]);
 
-      const owners = results.filter((r) => r.isOwner);
+      const owners = results.filter(r => r.isOwner);
       expect(owners.length).toBe(1); // Exactly 1 winner
       expect(results[0].profile.stripeIdempotencyKey).toBe(
         results[1].profile.stripeIdempotencyKey,
@@ -249,18 +270,22 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
       });
 
       const results = await Promise.all([
-        stripeConnectService.acquireCreationOperation(profile._id.toString(), 'MARCHANT'),
-        stripeConnectService.acquireCreationOperation(profile._id.toString(), 'MARCHANT'),
+        stripeConnectService.acquireCreationOperation(
+          profile._id.toString(),
+          'MARCHANT',
+        ),
+        stripeConnectService.acquireCreationOperation(
+          profile._id.toString(),
+          'MARCHANT',
+        ),
       ]);
 
-      const owners = results.filter((r) => r.isOwner);
+      const owners = results.filter(r => r.isOwner);
       expect(owners.length).toBe(1);
       expect(results[0].profile.stripeIdempotencyKey).toBe(
         results[1].profile.stripeIdempotencyKey,
       );
-      expect(results[0].profile.stripeIdempotencyKey).not.toBe(
-        uniqueFailedKey,
-      );
+      expect(results[0].profile.stripeIdempotencyKey).not.toBe(uniqueFailedKey);
     });
 
     it('5c. RECOVERY_REQUIRED & Stale CREATING Retry: Preserves exact same idempotency key across retries', async () => {
@@ -318,10 +343,14 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
 
       expect(recovered).not.toBeNull();
       expect(recovered.id).toBe('acct_recovered_merchant');
-      expect(mockStripe.accounts.retrieve).toHaveBeenCalledWith('acct_recovered_merchant');
+      expect(mockStripe.accounts.retrieve).toHaveBeenCalledWith(
+        'acct_recovered_merchant',
+      );
 
       const updatedProfile = await MerchantProfile.findById(profile._id);
-      expect(updatedProfile!.stripeConnectedAccountId).toBe('acct_recovered_merchant');
+      expect(updatedProfile!.stripeConnectedAccountId).toBe(
+        'acct_recovered_merchant',
+      );
       expect(updatedProfile!.accountCreationStatus).toBe('CREATED');
     });
 
@@ -336,12 +365,13 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
       });
       const uniqueId = uniqueUser._id.toString();
 
+      const uniqueStripeId = `acct_recovered_org_${Date.now()}`;
       await User.findByIdAndUpdate(uniqueId, {
-        organizerStripeAccountId: 'acct_recovered_organizer',
+        organizerStripeAccountId: uniqueStripeId,
       });
 
       mockStripe.accounts.retrieve.mockResolvedValueOnce({
-        id: 'acct_recovered_organizer',
+        id: uniqueStripeId,
         details_submitted: true,
         payouts_enabled: true,
         capabilities: { transfers: 'active' },
@@ -364,10 +394,10 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
       );
 
       expect(recovered).not.toBeNull();
-      expect(recovered.id).toBe('acct_recovered_organizer');
+      expect(recovered?.id).toBe(uniqueStripeId);
 
       const updatedProfile = await OrganizerProfile.findById(profile._id);
-      expect(updatedProfile!.stripeConnectedAccountId).toBe('acct_recovered_organizer');
+      expect(updatedProfile!.stripeConnectedAccountId).toBe(uniqueStripeId);
     });
 
     it('6c. Wrong user metadata (Ownership mismatch)', async () => {
@@ -394,7 +424,7 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
       });
 
       const profile = await stripeConnectService.getOrCreateProfile(
-        anotherUserId,
+        uniqueId,
         'MARCHANT',
       );
 
@@ -403,7 +433,9 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
       ).rejects.toThrow(/ownership mismatch/i);
 
       const updatedProfile = await MerchantProfile.findById(profile._id);
-      expect(updatedProfile!.accountCreationStatus).toBe('MANUAL_RECONCILIATION_REQUIRED');
+      expect(updatedProfile!.accountCreationStatus).toBe(
+        'MANUAL_RECONCILIATION_REQUIRED',
+      );
     });
 
     it('6d. Wrong role metadata (Role mismatch)', async () => {
@@ -454,26 +486,34 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
         merchantStripeAccountId: 'acct_not_found',
       });
 
-      mockStripe.accounts.retrieve.mockRejectedValueOnce(new Error('No such account: acct_not_found'));
+      const notFoundError: any = new Error('No such account: acct_not_found');
+      notFoundError.statusCode = 404;
+      notFoundError.code = 'resource_missing';
+
+      mockStripe.accounts.retrieve.mockRejectedValueOnce(notFoundError);
 
       const profile = await stripeConnectService.getOrCreateProfile(
         anotherUserId,
         'MARCHANT',
       );
 
-      const recovered = await stripeConnectService.reconcileOrRecoverAccount(
+      // It must throw a 409 Conflict for manual reconciliation
+      await expect(stripeConnectService.reconcileOrRecoverAccount(
         profile,
         'MARCHANT',
-      );
-
-      // It must catch the error, log a warning, and return null so the system can fall back to normal creation
-      expect(recovered).toBeNull();
+      )).rejects.toThrow(/not found or has been deleted/i);
     });
 
     it('6g. Successful account creation synchronizes User + Profile with same Stripe account ID', async () => {
-      const uniqueUser = await User.create({ email: `6g_${Date.now()}@connecttest.com`, password: 'password123', fullName: 'Test 6g', role: 'USER', isPremium: true, country: 'US' });
+      const uniqueUser = await User.create({
+        email: `6g_${Date.now()}@connecttest.com`,
+        password: 'password123',
+        fullName: 'Test 6g',
+        role: 'USER',
+        isPremium: true,
+        country: 'US',
+      });
       const uniqueId = uniqueUser._id.toString();
-
 
       await User.findByIdAndUpdate(uniqueId, {
         $unset: { organizerStripeAccountId: 1 },
@@ -505,9 +545,15 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
     });
 
     it('7. Stale CREATING Lock Recovery: Reclaims operation if older than timeout', async () => {
-      const uniqueUser = await User.create({ email: `7_${Date.now()}@connecttest.com`, password: 'password123', fullName: 'Test 7', role: 'USER', isPremium: true, country: 'US' });
+      const uniqueUser = await User.create({
+        email: `7_${Date.now()}@connecttest.com`,
+        password: 'password123',
+        fullName: 'Test 7',
+        role: 'USER',
+        isPremium: true,
+        country: 'US',
+      });
       const uniqueId = uniqueUser._id.toString();
-
 
       const staleDate = new Date(Date.now() - 360000); // 6 mins ago
       const uniqueOpId = `old_op_${Date.now()}_${Math.random()}`;
@@ -541,87 +587,133 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
 
     it('A. Existing account with both capabilities ACTIVE (update not called)', async () => {
       // Mock retrieve to return an account with active capabilities
-      mockStripe.accounts.retrieve.mockResolvedValueOnce({
+      const mockAccount = {
         id: 'acct_mock_active',
-        metadata: { skatriumUserId: subscribedUserId, skatriumRole: 'MARCHANT' },
+        metadata: {
+          skatriumUserId: subscribedUserId,
+          skatriumRole: 'MARCHANT',
+        },
         capabilities: { card_payments: 'active', transfers: 'active' },
-      });
+      };
+      mockStripe.accounts.retrieve.mockResolvedValueOnce(mockAccount).mockResolvedValueOnce(mockAccount);
 
       // Provide existing mapping so it triggers recovery
-      await User.findByIdAndUpdate(subscribedUserId, { merchantStripeAccountId: 'acct_mock_active' });
+      await User.findByIdAndUpdate(subscribedUserId, {
+        merchantStripeAccountId: 'acct_mock_active',
+      });
       const res = await request(app)
         .post('/api/v1/connect/merchant/onboard')
         .set('Authorization', `Bearer ${subscribedUserToken}`);
 
       expect(res.status).toBe(200);
-      expect(mockStripe.accounts.retrieve).toHaveBeenCalledWith('acct_mock_active');
+      expect(mockStripe.accounts.retrieve).toHaveBeenCalledWith(
+        'acct_mock_active',
+      );
       expect(mockStripe.accounts.update).not.toHaveBeenCalled(); // No repair needed
       expect(mockStripe.accountLinks.create).toHaveBeenCalled();
     });
 
     it('B. Existing account with capabilities {} (update called for both)', async () => {
-      mockStripe.accounts.retrieve.mockResolvedValueOnce({
+      const mockAccount = {
         id: 'acct_mock_empty',
-        metadata: { skatriumUserId: subscribedUserId, skatriumRole: 'MARCHANT' },
+        metadata: {
+          skatriumUserId: subscribedUserId,
+          skatriumRole: 'MARCHANT',
+        },
         capabilities: {}, // Empty
-      });
+      };
+      mockStripe.accounts.retrieve.mockResolvedValueOnce(mockAccount).mockResolvedValueOnce(mockAccount);
 
-      await User.findByIdAndUpdate(subscribedUserId, { merchantStripeAccountId: 'acct_mock_empty' });
+      await User.findByIdAndUpdate(subscribedUserId, {
+        merchantStripeAccountId: 'acct_mock_empty',
+      });
       const res = await request(app)
         .post('/api/v1/connect/merchant/onboard')
         .set('Authorization', `Bearer ${subscribedUserToken}`);
 
       expect(res.status).toBe(200);
-      expect(mockStripe.accounts.update).toHaveBeenCalledWith('acct_mock_empty', {
-        capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
-      });
+      expect(mockStripe.accounts.update).toHaveBeenCalledWith(
+        'acct_mock_empty',
+        {
+          capabilities: {
+            card_payments: { requested: true },
+            transfers: { requested: true },
+          },
+        },
+      );
     });
 
     it('C. Existing account with only card_payments active (update called for transfers)', async () => {
-      mockStripe.accounts.retrieve.mockResolvedValueOnce({
+      const mockAccount = {
         id: 'acct_mock_card_only',
-        metadata: { skatriumUserId: subscribedUserId, skatriumRole: 'MARCHANT' },
+        metadata: {
+          skatriumUserId: subscribedUserId,
+          skatriumRole: 'MARCHANT',
+        },
         capabilities: { card_payments: 'active' },
-      });
+      };
+      mockStripe.accounts.retrieve.mockResolvedValueOnce(mockAccount).mockResolvedValueOnce(mockAccount);
 
-      await User.findByIdAndUpdate(subscribedUserId, { merchantStripeAccountId: 'acct_mock_card_only' });
+      await User.findByIdAndUpdate(subscribedUserId, {
+        merchantStripeAccountId: 'acct_mock_card_only',
+      });
       const res = await request(app)
         .post('/api/v1/connect/merchant/onboard')
         .set('Authorization', `Bearer ${subscribedUserToken}`);
 
       expect(res.status).toBe(200);
-      expect(mockStripe.accounts.update).toHaveBeenCalledWith('acct_mock_card_only', {
-        capabilities: { transfers: { requested: true } },
-      });
+      expect(mockStripe.accounts.update).toHaveBeenCalledWith(
+        'acct_mock_card_only',
+        {
+          capabilities: { transfers: { requested: true } },
+        },
+      );
     });
 
     it('D. Existing account with only transfers active (update called for card_payments)', async () => {
-      mockStripe.accounts.retrieve.mockResolvedValueOnce({
+      const mockAccount = {
         id: 'acct_mock_transfers_only',
-        metadata: { skatriumUserId: subscribedUserId, skatriumRole: 'MARCHANT' },
+        metadata: {
+          skatriumUserId: subscribedUserId,
+          skatriumRole: 'MARCHANT',
+        },
         capabilities: { transfers: 'active' },
-      });
+      };
+      mockStripe.accounts.retrieve.mockResolvedValueOnce(mockAccount).mockResolvedValueOnce(mockAccount);
 
-      await User.findByIdAndUpdate(subscribedUserId, { merchantStripeAccountId: 'acct_mock_transfers_only' });
+      await User.findByIdAndUpdate(subscribedUserId, {
+        merchantStripeAccountId: 'acct_mock_transfers_only',
+      });
       const res = await request(app)
         .post('/api/v1/connect/merchant/onboard')
         .set('Authorization', `Bearer ${subscribedUserToken}`);
 
       expect(res.status).toBe(200);
-      expect(mockStripe.accounts.update).toHaveBeenCalledWith('acct_mock_transfers_only', {
-        capabilities: { card_payments: { requested: true } },
-      });
+      expect(mockStripe.accounts.update).toHaveBeenCalledWith(
+        'acct_mock_transfers_only',
+        {
+          capabilities: { card_payments: { requested: true } },
+        },
+      );
     });
 
     it('E. Stripe account update failure stops onboarding', async () => {
-      mockStripe.accounts.retrieve.mockResolvedValueOnce({
+      const mockAccount = {
         id: 'acct_mock_empty',
-        metadata: { skatriumUserId: subscribedUserId, skatriumRole: 'MARCHANT' },
+        metadata: {
+          skatriumUserId: subscribedUserId,
+          skatriumRole: 'MARCHANT',
+        },
         capabilities: {},
-      });
-      mockStripe.accounts.update.mockRejectedValueOnce(new Error('Stripe API error'));
+      };
+      mockStripe.accounts.retrieve.mockResolvedValueOnce(mockAccount).mockResolvedValueOnce(mockAccount);
+      mockStripe.accounts.update.mockRejectedValueOnce(
+        new Error('Stripe API error'),
+      );
 
-      await User.findByIdAndUpdate(subscribedUserId, { merchantStripeAccountId: 'acct_mock_empty' });
+      await User.findByIdAndUpdate(subscribedUserId, {
+        merchantStripeAccountId: 'acct_mock_empty',
+      });
       const res = await request(app)
         .post('/api/v1/connect/merchant/onboard')
         .set('Authorization', `Bearer ${subscribedUserToken}`);
@@ -633,39 +725,56 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
     });
 
     it('F/G. Existing Organizer account handles repair identically', async () => {
-      mockStripe.accounts.retrieve.mockResolvedValueOnce({
+      const mockAccount = {
         id: 'acct_mock_org',
-        metadata: { skatriumUserId: subscribedUserId, skatriumRole: 'ORGANIZER' },
+        metadata: {
+          skatriumUserId: subscribedUserId,
+          skatriumRole: 'ORGANIZER',
+        },
         capabilities: {},
-      });
+      };
+      mockStripe.accounts.retrieve.mockResolvedValueOnce(mockAccount).mockResolvedValueOnce(mockAccount);
 
-      await User.findByIdAndUpdate(subscribedUserId, { organizerStripeAccountId: 'acct_mock_org' });
+      await User.findByIdAndUpdate(subscribedUserId, {
+        organizerStripeAccountId: 'acct_mock_org',
+      });
       const res = await request(app)
         .post('/api/v1/connect/organizer/onboard')
         .set('Authorization', `Bearer ${subscribedUserToken}`);
 
       expect(res.status).toBe(200);
       expect(mockStripe.accounts.update).toHaveBeenCalledWith('acct_mock_org', {
-        capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
+        capabilities: {
+          card_payments: { requested: true },
+          transfers: { requested: true },
+        },
       });
     });
 
     it('H. No existing account triggers normal creation path with capabilities requested', async () => {
       // Clear mappings
-      await User.findByIdAndUpdate(anotherUserId, { $unset: { merchantStripeAccountId: 1 } });
+      await User.findByIdAndUpdate(anotherUserId, {
+        $unset: { merchantStripeAccountId: 1 },
+      });
       await MerchantProfile.deleteMany({ user: anotherUserId });
 
       const res = await request(app)
         .post('/api/v1/connect/merchant/onboard')
-        .set('Authorization', `Bearer ${jwt.sign({ id: anotherUserId, role: 'USER' }, config.jwt.jwt_access_secret as string)}`);
+        .set(
+          'Authorization',
+          `Bearer ${jwt.sign({ id: anotherUserId, role: 'USER' }, config.jwt.jwt_access_secret as string)}`,
+        );
 
       if (res.status !== 200) console.error('Test H failed with:', res.body);
       expect(res.status).toBe(200);
       expect(mockStripe.accounts.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          capabilities: { card_payments: { requested: true }, transfers: { requested: true } }
+          capabilities: {
+            card_payments: { requested: true },
+            transfers: { requested: true },
+          },
         }),
-        expect.any(Object)
+        expect.any(Object),
       );
     });
   });
@@ -683,7 +792,7 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
         Promise.resolve().then(() => onboardingTokenStore.consumeToken(token)),
       ]);
 
-      const validConsumptions = results.filter((r) => r !== null);
+      const validConsumptions = results.filter(r => r !== null);
       expect(validConsumptions.length).toBe(1); // Only 1 succeeded
     });
 
@@ -692,7 +801,11 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
       (config.stripe as any).connect_token_secret = '';
 
       expect(() => {
-        onboardingTokenStore.createToken(subscribedUserId, 'MARCHANT', 'profile_123');
+        onboardingTokenStore.createToken(
+          subscribedUserId,
+          'MARCHANT',
+          'profile_123',
+        );
       }).toThrow(/STRIPE_CONNECT_TOKEN_SECRET is missing and mandatory/i);
 
       (config.stripe as any).connect_token_secret = originalSecret;
@@ -717,7 +830,9 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
         'profile_123',
       );
 
-      const res = await request(app).get(`/api/v1/connect/return?token=${token}`);
+      const res = await request(app).get(
+        `/api/v1/connect/return?token=${token}`,
+      );
       expect(res.status).toBe(302);
       expect(res.headers.location).toMatch(/stripe-connect-callback/);
     });
@@ -731,9 +846,13 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
 
       await request(app).get(`/api/v1/connect/return?token=${token}`);
 
-      const res = await request(app).get(`/api/v1/connect/return?token=${token}`);
+      const res = await request(app).get(
+        `/api/v1/connect/return?token=${token}`,
+      );
       expect(res.status).toBe(400);
-      expect(res.body.message).toMatch(/Invalid, expired, or already consumed/i);
+      expect(res.body.message).toMatch(
+        /Invalid, expired, or already consumed/i,
+      );
     });
   });
 
@@ -782,7 +901,10 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
         details_submitted: true,
         payouts_enabled: false,
         capabilities: { transfers: 'inactive' },
-        requirements: { past_due: ['individual.verification.document'], disabled_reason: null },
+        requirements: {
+          past_due: ['individual.verification.document'],
+          disabled_reason: null,
+        },
       };
       expect(evaluateStripeAccountStatus(accountPastDue).onboardingStatus).toBe(
         'RESTRICTED',
@@ -823,23 +945,242 @@ describe('Stripe Connect Seller / Organizer Onboarding (Phase 2 Audit Strengthen
     });
   });
 
-  describe('API Status Endpoints', () => {
-    it('18. Merchant & Organizer Status Endpoints Return Telemetry', async () => {
-      const resM = await request(app)
+  describe('API Status Endpoints & Passive Recovery', () => {
+    beforeEach(async () => {
+      // Clear profiles and User mappings for clean state
+      await MerchantProfile.deleteMany({ user: subscribedUserId });
+      await OrganizerProfile.deleteMany({ user: subscribedUserId });
+      await User.findByIdAndUpdate(subscribedUserId, {
+        $unset: { merchantStripeAccountId: 1, organizerStripeAccountId: 1 },
+      });
+      // Ensure mocks allow recovery by default
+      mockStripe.accounts.retrieve.mockResolvedValue({
+        id: 'acct_mock_existing',
+        details_submitted: false,
+        payouts_enabled: false,
+        capabilities: { transfers: 'inactive' },
+        requirements: {
+          currently_due: [],
+          past_due: [],
+          eventually_due: [],
+          disabled_reason: null,
+        },
+        metadata: {
+          skatriumUserId: subscribedUserId,
+          skatriumRole: 'MARCHANT',
+        },
+      });
+    });
+
+    it('A/B. Profile exists normally - behavior unchanged', async () => {
+      await stripeConnectService.getOrCreateProfile(
+        subscribedUserId,
+        'MARCHANT',
+      );
+      await MerchantProfile.findOneAndUpdate(
+        { user: subscribedUserId },
+        { stripeConnectedAccountId: 'acct_mock_existing' },
+      );
+
+      const res = await request(app)
         .get('/api/v1/connect/merchant/status')
         .set('Authorization', `Bearer ${subscribedUserToken}`);
 
-      expect(resM.status).toBe(200);
-      expect(resM.body.data.role).toBe('MARCHANT');
-      expect(resM.body.data.onboardingStatus).toBeDefined();
+      expect(res.status).toBe(200);
+      expect(res.body.data.stripeConnectedAccountId).toBe('acct_mock_existing');
+    });
 
-      const resO = await request(app)
+    it('C. Merchant Profile missing + User mapping exists -> recovers account & returns actual status', async () => {
+      await User.findByIdAndUpdate(subscribedUserId, {
+        merchantStripeAccountId: 'acct_mock_existing',
+      });
+
+      const res = await request(app)
+        .get('/api/v1/connect/merchant/status')
+        .set('Authorization', `Bearer ${subscribedUserToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.stripeConnectedAccountId).toBe('acct_mock_existing');
+      expect(res.body.data.onboardingStatus).toBe('ONBOARDING_REQUIRED'); // Because details_submitted=false
+
+      const profile = await MerchantProfile.findOne({ user: subscribedUserId });
+      expect(profile?.stripeConnectedAccountId).toBe('acct_mock_existing');
+    });
+
+    it('D. Organizer Profile missing + User mapping exists -> recovers account & returns actual status', async () => {
+      await User.findByIdAndUpdate(subscribedUserId, {
+        organizerStripeAccountId: 'acct_mock_org',
+      });
+      mockStripe.accounts.retrieve.mockResolvedValueOnce({
+        id: 'acct_mock_org',
+        details_submitted: false,
+        payouts_enabled: false,
+        capabilities: {},
+        requirements: {
+          currently_due: [],
+          past_due: [],
+          eventually_due: [],
+          disabled_reason: null,
+        },
+        metadata: {
+          skatriumUserId: subscribedUserId,
+          skatriumRole: 'ORGANIZER',
+        },
+      });
+
+      const res = await request(app)
         .get('/api/v1/connect/organizer/status')
         .set('Authorization', `Bearer ${subscribedUserToken}`);
 
-      expect(resO.status).toBe(200);
-      expect(resO.body.data.role).toBe('ORGANIZER');
-      expect(resO.body.data.onboardingStatus).toBeDefined();
+      expect(res.status).toBe(200);
+      expect(res.body.data.stripeConnectedAccountId).toBe('acct_mock_org');
+
+      const profile = await OrganizerProfile.findOne({
+        user: subscribedUserId,
+      });
+      expect(profile?.stripeConnectedAccountId).toBe('acct_mock_org');
+    });
+
+    it('E. Profile exists but stripeConnectedAccountId is missing -> recovers using User mapping', async () => {
+      await stripeConnectService.getOrCreateProfile(
+        subscribedUserId,
+        'MARCHANT',
+      ); // Creates without ID
+      await User.findByIdAndUpdate(subscribedUserId, {
+        merchantStripeAccountId: 'acct_mock_existing',
+      });
+
+      const res = await request(app)
+        .get('/api/v1/connect/merchant/status')
+        .set('Authorization', `Bearer ${subscribedUserToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.stripeConnectedAccountId).toBe('acct_mock_existing');
+    });
+
+    it('F. User mapping absent -> preserves normal NOT_STARTED behavior', async () => {
+      const res = await request(app)
+        .get('/api/v1/connect/merchant/status')
+        .set('Authorization', `Bearer ${subscribedUserToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.stripeConnectedAccountId).toBeNull();
+      expect(res.body.data.accountCreationStatus).toBe('NOT_STARTED');
+    });
+
+    it('G. Stored account belongs to another User -> rejects recovery, preserves NOT_STARTED/MANUAL_RECONCILIATION_REQUIRED', async () => {
+      await User.findByIdAndUpdate(subscribedUserId, {
+        merchantStripeAccountId: 'acct_mock_existing',
+      });
+      mockStripe.accounts.retrieve.mockResolvedValueOnce({
+        id: 'acct_mock_existing',
+        metadata: {
+          skatriumUserId: 'some_other_user',
+          skatriumRole: 'MARCHANT',
+        }, // Mismatch
+      });
+
+      const res = await request(app)
+        .get('/api/v1/connect/merchant/status')
+        .set('Authorization', `Bearer ${subscribedUserToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.stripeConnectedAccountId).toBeNull();
+      expect(res.body.data.accountCreationStatus).toBe(
+        'MANUAL_RECONCILIATION_REQUIRED',
+      );
+    });
+
+    it('H. Stored account has wrong role -> rejects recovery', async () => {
+      await User.findByIdAndUpdate(subscribedUserId, {
+        merchantStripeAccountId: 'acct_mock_existing',
+      });
+      mockStripe.accounts.retrieve.mockResolvedValueOnce({
+        id: 'acct_mock_existing',
+        metadata: {
+          skatriumUserId: subscribedUserId,
+          skatriumRole: 'ORGANIZER',
+        }, // Mismatch
+      });
+
+      const res = await request(app)
+        .get('/api/v1/connect/merchant/status')
+        .set('Authorization', `Bearer ${subscribedUserToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.stripeConnectedAccountId).toBeNull();
+    });
+
+    it('I. Stripe API network/timeout failure -> returns BAD_GATEWAY error, does not mask as NOT_STARTED', async () => {
+      await User.findByIdAndUpdate(subscribedUserId, {
+        merchantStripeAccountId: 'acct_mock_existing',
+      });
+      mockStripe.accounts.retrieve.mockRejectedValueOnce(
+        new Error('Stripe Down'), // simulated network error
+      );
+
+      const res = await request(app)
+        .get('/api/v1/connect/merchant/status')
+        .set('Authorization', `Bearer ${subscribedUserToken}`);
+
+      expect(res.status).toBe(502);
+      expect(res.body.message).toMatch(/Stripe API error during recovery/i);
+    });
+
+    it('I2. Stripe account not found -> returns MANUAL_RECONCILIATION_REQUIRED without throwing 500', async () => {
+      await User.findByIdAndUpdate(subscribedUserId, {
+        merchantStripeAccountId: 'acct_mock_deleted',
+      });
+
+      const notFoundError: any = new Error('No such account: acct_mock_deleted');
+      notFoundError.statusCode = 404;
+      notFoundError.code = 'resource_missing';
+
+      mockStripe.accounts.retrieve.mockRejectedValueOnce(notFoundError);
+
+      const res = await request(app)
+        .get('/api/v1/connect/merchant/status')
+        .set('Authorization', `Bearer ${subscribedUserToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.stripeConnectedAccountId).toBeNull();
+      expect(res.body.data.accountCreationStatus).toBe('MANUAL_RECONCILIATION_REQUIRED');
+    });
+
+    it('J. Concurrent status requests -> no duplicate Stripe account', async () => {
+      await User.findByIdAndUpdate(subscribedUserId, {
+        merchantStripeAccountId: 'acct_mock_existing',
+      });
+
+      // Run two requests concurrently
+      const [res1, res2] = await Promise.all([
+        request(app)
+          .get('/api/v1/connect/merchant/status')
+          .set('Authorization', `Bearer ${subscribedUserToken}`),
+        request(app)
+          .get('/api/v1/connect/merchant/status')
+          .set('Authorization', `Bearer ${subscribedUserToken}`),
+      ]);
+
+      expect(res1.status).toBe(200);
+      expect(res2.status).toBe(200);
+
+      const profiles = await MerchantProfile.find({ user: subscribedUserId });
+      expect(profiles.length).toBe(1); // No duplicates
+      expect(profiles[0].stripeConnectedAccountId).toBe('acct_mock_existing');
+    });
+
+    it('K. Merchant/Organizer isolation', async () => {
+      await User.findByIdAndUpdate(subscribedUserId, {
+        organizerStripeAccountId: 'acct_mock_org',
+      });
+
+      const res = await request(app)
+        .get('/api/v1/connect/merchant/status')
+        .set('Authorization', `Bearer ${subscribedUserToken}`);
+
+      // Should not use organizer mapping for merchant
+      expect(res.body.data.stripeConnectedAccountId).toBeNull();
     });
   });
 });

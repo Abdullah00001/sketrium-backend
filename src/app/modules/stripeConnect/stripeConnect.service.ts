@@ -172,6 +172,7 @@ export class StripeConnectService {
           metadata.skatriumUserId !== profile.user.toString() ||
           metadata.skatriumRole !== role
         ) {
+          console.warn(`[DEBUG OWNERSHIP MISMATCH] user=${profile.user.toString()}, metadataUser=${metadata.skatriumUserId}, role=${role}, metadataRole=${metadata.skatriumRole}`);
           await Model.findByIdAndUpdate(profile._id, {
             $set: {
               accountCreationStatus: 'MANUAL_RECONCILIATION_REQUIRED',
@@ -206,6 +207,29 @@ export class StripeConnectService {
       if (err instanceof AppError) throw err;
       console.warn(
         `[StripeConnectService] Account recovery retrieve error: ${err.message}`
+      );
+
+      const isNotFound = err.statusCode === 404 || err.code === 'resource_missing';
+
+      if (isNotFound) {
+        await Model.findByIdAndUpdate(profile._id, {
+          $set: {
+            accountCreationStatus: 'MANUAL_RECONCILIATION_REQUIRED',
+            accountCreationLastError: {
+              code: 'ACCOUNT_NOT_FOUND',
+              message: 'Recovered Stripe account was not found or has been deleted. Manual reconciliation required.',
+            },
+          },
+        });
+        throw new AppError(
+          httpStatus.CONFLICT,
+          'Recovered Stripe account was not found or has been deleted. Manual reconciliation required.'
+        );
+      }
+
+      throw new AppError(
+        httpStatus.BAD_GATEWAY,
+        `Stripe API error during recovery: ${err.message}`
       );
     }
 
@@ -422,7 +446,8 @@ export class StripeConnectService {
 
       // Reload updated profile
       const Model = this.getModel(role);
-      profile = (await Model.findById(profile._id))!;
+      const reloadedProfile = await Model.findById(profile._id);
+      profile = reloadedProfile!;
     }
 
     // Generate single-use onboarding token
@@ -476,7 +501,27 @@ export class StripeConnectService {
     }
 
     const Model = this.getModel(role);
-    const profile = await Model.findOne({ user: userId });
+    let profile = await Model.findOne({ user: userId });
+
+    const userAccountId =
+      role === 'MARCHANT'
+        ? user.merchantStripeAccountId
+        : user.organizerStripeAccountId;
+
+    if ((!profile || !profile.stripeConnectedAccountId) && userAccountId) {
+      try {
+        profile = await this.getOrCreateProfile(userId, role);
+        await this.reconcileOrRecoverAccount(profile, role);
+      } catch (err: any) {
+        console.warn(
+          `[StripeConnectService] Status endpoint recovery failed for ${userId}: ${err.message}`
+        );
+        if (err.statusCode === httpStatus.BAD_GATEWAY) {
+          throw err;
+        }
+      }
+      profile = await Model.findOne({ user: userId });
+    }
 
     if (!profile || !profile.stripeConnectedAccountId) {
       return {
