@@ -582,7 +582,7 @@ const getProductDashboard = async (
   const totalSalesResult = await Order.aggregate([
     {
       $match: {
-        paymentStatus: 'paid',
+        paymentStatus: { $in: ['paid', 'completed'] },
         isDeleted: false,
       },
     },
@@ -694,7 +694,7 @@ const getProductDashboard = async (
   const monthlyEarningRaw = await Order.aggregate([
     {
       $match: {
-        paymentStatus: 'paid',
+        paymentStatus: { $in: ['paid', 'completed'] },
         isDeleted: false,
         createdAt: {
           $gte: new Date(`${targetYear}-01-01`),
@@ -918,7 +918,7 @@ const getEarningOverview = async (
 
   // ── Total Earning ─────────────────────────────────────────
   const totalResult = await Order.aggregate([
-    { $match: { paymentStatus: 'paid', isDeleted: false } },
+    { $match: { paymentStatus: { $in: ['paid', 'completed'] }, isDeleted: false } },
     { $unwind: '$items' },
     { $match: { 'items.product': { $in: productIds } } },
     {
@@ -936,7 +936,7 @@ const getEarningOverview = async (
   const monthlyRaw = await Order.aggregate([
     {
       $match: {
-        paymentStatus: 'paid',
+        paymentStatus: { $in: ['paid', 'completed'] },
         isDeleted: false,
         createdAt: {
           $gte: new Date(`${targetYear}-01-01`),
@@ -970,7 +970,7 @@ const getEarningOverview = async (
 
   // ── Total Transactions Count ──────────────────────────────
   const totalTransactionsResult = await Order.aggregate([
-    { $match: { paymentStatus: 'paid', isDeleted: false } },
+    { $match: { paymentStatus: { $in: ['paid', 'completed'] }, isDeleted: false } },
     { $unwind: '$items' },
     { $match: { 'items.product': { $in: productIds } } },
     { $group: { _id: '$_id' } },
@@ -980,7 +980,7 @@ const getEarningOverview = async (
 
   // ── Recent Transactions ───────────────────────────────────
   const recentTransactions = await Order.aggregate([
-    { $match: { paymentStatus: 'paid', isDeleted: false } },
+    { $match: { paymentStatus: { $in: ['paid', 'completed'] }, isDeleted: false } },
     { $unwind: '$items' },
     {
       $match: {

@@ -50,7 +50,7 @@ const generateTicketNumber = (): string => {
 //     // Ticket status paid koro + event attendees e user add koro
 //     const ticket = await Ticket.findOneAndUpdate(
 //       { stripePaymentIntentId: paymentIntent.id },
-//       { paymentStatus: "paid" },
+//       { paymentStatus: { $in: ["paid", "completed"] } },
 //       { new: true }
 //     );
 
@@ -85,10 +85,10 @@ const getMyTickets = async (userId: string, page = 1, limit = 10) => {
   const total = await Ticket.countDocuments({
     user: userId,
     isDeleted: false,
-    paymentStatus: "paid",
+    paymentStatus: { $in: ["paid", "completed"] },
   });
 
-  const tickets = await Ticket.find({ user: userId, paymentStatus: "paid" })
+  const tickets = await Ticket.find({ user: userId, paymentStatus: { $in: ["paid", "completed"] } })
     .populate("event", "title date time location coverImage category")
     .populate("user", "fullName email image") 
     .sort({ createdAt: -1 })
@@ -122,7 +122,7 @@ const getTicketQRCode = async (ticketId: string, userId: string) => {
   const ticket = await Ticket.findOne({
     _id: ticketId,
     user: userId,
-    paymentStatus: "paid",
+    paymentStatus: { $in: ["paid", "completed"] },
   }).populate("event", "title date location");
 
   if (!ticket) throw new Error("Ticket not found or payment pending");
@@ -277,7 +277,7 @@ const scanTicket = async (ticketNumber: string, eventId: string, organizerId: st
 //       quantity,
 //       price: 0,
 //       totalAmount: 0,
-//       paymentStatus: "paid", // ✅ সরাসরি paid
+//       paymentStatus: { $in: ["paid", "completed"] }, // ✅ সরাসরি paid
 //     });
 
 //     // ✅ attendees এ add করুন
@@ -406,7 +406,7 @@ const buyTicket = async (
       quantity: parsedQuantity,
       price: 0,
       totalAmount: 0,
-      paymentStatus: "paid",
+      paymentStatus: { $in: ["paid", "completed"] },
     });
 
     await Event.findByIdAndUpdate(eventId, {
@@ -600,7 +600,7 @@ const getEarningOverview = async (
     {
       $match: {
         event: { $in: eventIds },
-        paymentStatus: 'paid',
+        paymentStatus: { $in: ['paid', 'completed'] },
         isDeleted: false,
       },
     },
@@ -617,7 +617,7 @@ const getEarningOverview = async (
     {
       $match: {
         event: { $in: eventIds },
-        paymentStatus: 'paid',
+        paymentStatus: { $in: ['paid', 'completed'] },
         isDeleted: false,
         createdAt: {
           $gte: new Date(`${targetYear}-01-01T00:00:00.000Z`),
@@ -648,13 +648,13 @@ const getEarningOverview = async (
   // ── Recent Payments with pagination ───────────────────────────
   const totalPayments = await Ticket.countDocuments({
     event: { $in: eventIds },
-    paymentStatus: 'paid',
+    paymentStatus: { $in: ['paid', 'completed'] },
     isDeleted: false,
   });
 
   const recentPayments = await Ticket.find({
     event: { $in: eventIds },
-    paymentStatus: 'paid',
+    paymentStatus: { $in: ['paid', 'completed'] },
     isDeleted: false,
   })
     .populate('user', 'fullName image email')
@@ -706,7 +706,7 @@ const getEarningByEvent = async (userId: string, eventId: string) => {
  
   const payments = await Ticket.find({
     event: eventId,
-    paymentStatus: "paid",
+    paymentStatus: { $in: ["paid", "completed"] },
     isDeleted: false,
   })
     .populate("user", "name profileImage")
@@ -718,7 +718,7 @@ const getEarningByEvent = async (userId: string, eventId: string) => {
     {
       $match: {
         event: new mongoose.Types.ObjectId(eventId),
-        paymentStatus: "paid",
+        paymentStatus: { $in: ["paid", "completed"] },
         isDeleted: false,
       },
     },

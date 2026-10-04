@@ -10,6 +10,8 @@ import { Cart } from '../addtocard/addtotocard.model';
 import { IPayment, ReconciliationReason } from './marketplacePayment.interface';
 import { marketplaceCheckoutService } from './marketplaceCheckout.service';
 import { enqueueReconciliationJob } from '../../jobs/marketplaceReconciliation.queue';
+import { Order } from '../userOrder/userOrder.model';
+import { Ticket } from '../Ticke/ticke.model';
 
 import { marketplaceTransferService } from './marketplaceTransfer.service';
 import { enqueueTransferJob } from '../../jobs/marketplaceTransferQueue.job';
@@ -209,6 +211,21 @@ export class MarketplaceWebhookService {
         if (!updatedPayment) {
           throw new Error('Payment status update race condition');
         }
+
+        // Sync legacy Order status to completed (fixes frontend order history not showing)
+        await Order.updateOne(
+          { stripePaymentIntentId: pi.id },
+          { $set: { paymentStatus: 'completed' } },
+          { session: sessionA }
+        );
+
+        // Sync legacy Ticket status to completed (fixes frontend ticket history not showing)
+        await Ticket.updateOne(
+          { stripePaymentIntentId: pi.id },
+          { $set: { paymentStatus: 'completed' } },
+          { session: sessionA }
+        );
+
 
         const reservations = await ReservationRecord.find({ paymentId: payment._id }).session(sessionA);
         for (const res of reservations) {

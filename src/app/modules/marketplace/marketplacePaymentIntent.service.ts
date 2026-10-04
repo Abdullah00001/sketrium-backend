@@ -7,6 +7,8 @@ import { Payment } from './marketplacePayment.model';
 import { ReservationRecord } from './reservationRecord.model';
 import { IPayment } from './marketplacePayment.interface';
 import { marketplaceCheckoutService } from './marketplaceCheckout.service';
+import { Order } from '../userOrder/userOrder.model';
+import { Ticket } from '../Ticke/ticke.model';
 
 export type StripeErrorClassification = 'DEFINITIVE_STRIPE_FAILURE' | 'AMBIGUOUS_STRIPE_FAILURE';
 
@@ -168,6 +170,20 @@ export class MarketplacePaymentIntentService {
           },
         }
       );
+
+      // Sync legacy Order with true PaymentIntent ID
+      await Order.updateOne(
+        { stripePaymentIntentId: payment._id.toString() },
+        { $set: { stripePaymentIntentId: pi.id } }
+      );
+
+      // Sync legacy Ticket with true PaymentIntent ID
+      await Ticket.updateOne(
+        { stripePaymentIntentId: payment._id.toString() },
+        { $set: { stripePaymentIntentId: pi.id } }
+      );
+
+
 
       return { paymentIntentId: pi.id, clientSecret: pi.client_secret };
     } catch (err: any) {

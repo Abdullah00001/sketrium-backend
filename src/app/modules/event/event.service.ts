@@ -909,7 +909,7 @@ const getMyTicketnew = async (
 
   const allTickets = await Ticket.find({
     user: userId,
-    paymentStatus: 'paid',
+    paymentStatus: { $in: ['paid', 'completed'] },
     isDeleted: { $ne: true },
   })
     .populate({
@@ -977,7 +977,7 @@ const getDashboardStats = async (userId: string, year?: number) => {
   // 2. Fetch Tickets for all host events
   const tickets = await Ticket.find({
     event: { $in: eventIds },
-    paymentStatus: 'paid',
+    paymentStatus: { $in: ['paid', 'completed'] },
     isDeleted: false,
   });
 
@@ -1036,7 +1036,7 @@ const getEventChartData = async (eventId: string, year?: number) => {
   // Fetch Tickets for this specific event
   const tickets = await Ticket.find({
     event: eventId,
-    paymentStatus: 'paid',
+    paymentStatus: { $in: ['paid', 'completed'] },
     isDeleted: false,
   });
 
@@ -1090,7 +1090,7 @@ const getTotalEarningCards = async (userId: string) => {
   // Fetch Tickets for all host events
   const tickets = await Ticket.find({
     event: { $in: eventIds },
-    paymentStatus: 'paid',
+    paymentStatus: { $in: ['paid', 'completed'] },
     isDeleted: false,
   });
 
@@ -1289,7 +1289,7 @@ const getRecentPayments = async (
 
   const query: any = {
     event: { $in: eventIds },
-    paymentStatus: 'paid',
+    paymentStatus: { $in: ['paid', 'completed'] },
     isDeleted: false,
   };
 

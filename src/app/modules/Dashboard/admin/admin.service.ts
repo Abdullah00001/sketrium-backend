@@ -290,7 +290,7 @@ const getAdminDashboard = async (
   const ticketEarningRaw = await Ticket.aggregate([
     {
       $match: {
-        paymentStatus: 'paid',
+        paymentStatus: { $in: ['paid', 'completed'] },
         isDeleted: false,
       },
     },
@@ -314,7 +314,7 @@ const getAdminDashboard = async (
   const orderEarningRaw = await Order.aggregate([
     {
       $match: {
-        paymentStatus: 'paid',
+        paymentStatus: { $in: ['paid', 'completed'] },
         isDeleted: false,
       },
     },
@@ -409,7 +409,7 @@ const getAdminDashboard = async (
   const ticketRaw = await Ticket.aggregate([
     {
       $match: {
-        paymentStatus: 'paid',
+        paymentStatus: { $in: ['paid', 'completed'] },
         isDeleted: false,
         createdAt: { $gte: startDate, $lte: endDate },
       },
@@ -435,7 +435,7 @@ const getAdminDashboard = async (
   const orderRaw = await Order.aggregate([
     {
       $match: {
-        paymentStatus: 'paid',
+        paymentStatus: { $in: ['paid', 'completed'] },
         isDeleted: false,
         createdAt: { $gte: startDate, $lte: endDate },
       },

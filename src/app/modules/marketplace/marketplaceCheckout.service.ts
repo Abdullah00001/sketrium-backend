@@ -12,7 +12,9 @@ import { IPayment, IPaymentAllocation } from './marketplacePayment.interface';
 import { IReservationRecord } from './reservationRecord.interface';
 import { getStripeClient } from '../../utils/stripeClient';
 import { enqueueReconciliationJob } from '../../jobs/marketplaceReconciliation.queue';
-
+import { Order } from '../userOrder/userOrder.model';
+import { Ticket } from '../Ticke/ticke.model';
+import User from '../user/user.model';
 export class MarketplaceCheckoutService {
   /**
    * Deterministically generates a canonical SHA-256 fingerprint for checkout parameters.
@@ -180,6 +182,42 @@ export class MarketplaceCheckoutService {
         allocations,
         purchasedCartItemIds: (cart.items as any[]).map((i) => i._id),
       });
+
+      // Synchronize with Legacy Order API (for /api/v1/order/order-history compatibility)
+      let totalShipping = 0;
+      let totalSubtotal = 0;
+      const orderItemsSnapshot = (cart.items as any[]).map((item) => {
+        const product = item.product;
+        const unitPrice = product.discountPrice > 0 ? product.discountPrice : product.price;
+        const itemTotal = unitPrice * item.quantity;
+        totalSubtotal += itemTotal;
+        totalShipping += product.shippingCost || 0;
+        return {
+          product: product._id,
+          quantity: item.quantity,
+          color: item.color || '',
+          size: item.size || '',
+          price: unitPrice,
+        };
+      });
+
+      // Normalise shipping address postal code
+      const address = params.shippingAddress || {};
+      address.postcode = address.postcode || address.postalCode || address.zipCode || address.zipcode || address.postCode || address.postal_code || address.zip_code || '';
+
+      await Order.create({
+        user: userObjectId,
+        items: orderItemsSnapshot,
+        shippingAddress: address,
+        oderid: `ORD-${Date.now()}`,
+        subtotal: totalSubtotal,
+        shippingCost: totalShipping,
+        total: totalSubtotal + totalShipping,
+        paymentStatus: 'pending',
+        orderStatus: 'processing',
+        stripePaymentIntentId: payment._id.toString(), // Temporary link, replaced by true PI ID in intent service
+      });
+
     } catch (err: any) {
       if (err.code === 11000) {
         const found = await Payment.findOne({
@@ -364,6 +402,26 @@ export class MarketplaceCheckoutService {
         status: 'PENDING',
         allocations,
       });
+
+      // Synchronize with Legacy Ticket API (for user ticket history & organizer analytics)
+      const user = await User.findById(userObjectId);
+      const timestamp = Date.now().toString(36).toUpperCase();
+      const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+      
+      await Ticket.create({
+        user: userObjectId,
+        event: eventObjectId,
+        ticketNumber: `TKT-${timestamp}-${random}`,
+        attendeeName: user?.fullName || 'Guest',
+        attendeeEmail: user?.email || 'guest@example.com',
+        ticketType: 'General',
+        quantity: participantCount,
+        price: event.price,
+        totalAmount: totalAmountCents / 100,
+        paymentStatus: 'pending',
+        stripePaymentIntentId: payment._id.toString(), // Temporary link, replaced by true PI ID in intent service
+      });
+      
     } catch (err: any) {
       if (err.code === 11000) {
         const found = await Payment.findOne({
