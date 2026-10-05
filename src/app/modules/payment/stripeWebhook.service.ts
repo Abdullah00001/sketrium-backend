@@ -46,6 +46,13 @@ export class StripeWebhookService {
       );
     }
 
+    return this.processVerifiedEvent(event);
+  }
+
+  /**
+   * Process an already verified Stripe event (useful for Connect webhooks).
+   */
+  async processVerifiedEvent(event: any) {
     // Extract minimal sanitized event snapshot as required by Architecture Correction #3
     const stripeObjectId = (event.data?.object as any)?.id;
     const stripeObjectType = (event.data?.object as any)?.object;

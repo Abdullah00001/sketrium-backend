@@ -119,7 +119,7 @@ export class MarketplacePaymentIntentService {
         const existingPi = await stripe.paymentIntents.retrieve(current.paymentIntentId, {
           stripeAccount: connectedAccountId,
         });
-        return { paymentIntentId: existingPi.id, clientSecret: existingPi.client_secret, stripeAccount: connectedAccountId };
+        return { paymentIntentId: existingPi.id, clientSecret: existingPi.client_secret, stripeAccount: connectedAccountId } as any;
       }
       if (current?.stripePaymentIntentOperationStatus === 'CREATING') {
         // Concurrent caller wait loop (up to 2000ms) for primary thread to finish creation
@@ -131,7 +131,7 @@ export class MarketplacePaymentIntentService {
             const existingPi = await stripe.paymentIntents.retrieve(retryPayment.paymentIntentId, {
               stripeAccount: connectedAccountId,
             });
-            return { paymentIntentId: existingPi.id, clientSecret: existingPi.client_secret, stripeAccount: connectedAccountId };
+            return { paymentIntentId: existingPi.id, clientSecret: existingPi.client_secret, stripeAccount: connectedAccountId } as any;
           }
         }
         throw new AppError(409, 'PaymentIntent creation currently in progress by another thread');
@@ -158,7 +158,7 @@ export class MarketplacePaymentIntentService {
     }
 
     try {
-      const piParams: Stripe.PaymentIntentCreateParams = {
+      const piParams: any = {
         amount: payment.amount,
         currency: payment.currency.toLowerCase(),
         metadata,
@@ -202,7 +202,7 @@ export class MarketplacePaymentIntentService {
 
 
 
-      return { paymentIntentId: pi.id, clientSecret: pi.client_secret, stripeAccount: connectedAccountId };
+      return { paymentIntentId: pi.id, clientSecret: pi.client_secret, stripeAccount: connectedAccountId } as any;
     } catch (err: any) {
       const classification = classifyStripeError(err);
 

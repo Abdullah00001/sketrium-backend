@@ -84,13 +84,17 @@ const productSchema = new Schema<IProduct>(
 // });
 
 productSchema.pre("findOne", function (next) {
-  this.find({ isDeleted: { $ne: true } });
+  if (!(this as any).getOptions?.().ignoreIsDeleted) {
+    this.find({ isDeleted: { $ne: true } });
+  }
   next();
 });
 
 // ✅ এটা দাও
 productSchema.pre(/^find/, function (next) {
-  (this as any).find({ isDeleted: { $ne: true } });
+  if (!(this as any).getOptions?.().ignoreIsDeleted) {
+    (this as any).find({ isDeleted: { $ne: true } });
+  }
   next();
 });
 

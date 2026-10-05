@@ -42,7 +42,11 @@ const getOrderHistory = async (
   const total = await Order.countDocuments(filter);
 
   const orders = await Order.find(filter)
-    .populate('items.product', 'name images price currency')
+    .populate({
+      path: 'items.product',
+      select: 'name images price currency',
+      options: { ignoreIsDeleted: true }
+    })
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);

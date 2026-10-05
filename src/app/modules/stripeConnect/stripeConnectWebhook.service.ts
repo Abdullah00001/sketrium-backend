@@ -99,6 +99,13 @@ export class StripeConnectWebhookService {
     const accountId = this.extractAccountIdFromEvent(event);
     const supportedEvents = ['account.updated', 'capability.updated'];
 
+    // Route Direct Charges & Connect related payment events to Platform Webhook Engine
+    if (event.type.startsWith('payment_intent.') || event.type.startsWith('charge.') || event.type.startsWith('transfer.')) {
+      const { stripeWebhookService } = require('../payment/stripeWebhook.service');
+      const result = await stripeWebhookService.processVerifiedEvent(event);
+      return { status: result.status === 'processed' ? 'SUCCESS' : result.status.toUpperCase(), httpStatus: 200 };
+    }
+
     // Audit valid unsupported events without mutating profiles
     if (!supportedEvents.includes(event.type)) {
       await StripeConnectWebhookEvent.findOneAndUpdate(
@@ -212,38 +219,7 @@ export class StripeConnectWebhookService {
 
     // Process event logic
     try {
-      // 1. Direct Charge Payment Intents (Phase 4 Marketplace)
-      if (
-        event.type === 'payment_intent.succeeded' ||
-        event.type === 'payment_intent.payment_failed' ||
-        event.type === 'charge.refunded' ||
-        event.type === 'charge.dispute.created'
-      ) {
-        const stripeObjectId = (event.data?.object as any)?.id;
-        const stripeObjectType = (event.data?.object as any)?.object;
-        
-        await stripeEventDispatcher.dispatch({
-          id: event.id,
-          type: event.type,
-          apiVersion: event.api_version || undefined,
-          created: event.created,
-          livemode: event.livemode,
-          account: (event as any).account || undefined,
-          objectId: stripeObjectId,
-          objectType: stripeObjectType,
-          metadata: (event.data?.object as any)?.metadata || undefined,
-          amount: (event.data?.object as any)?.amount ?? undefined,
-          currency: (event.data?.object as any)?.currency ?? undefined,
-          status: (event.data?.object as any)?.status ?? undefined,
-          latestCharge: (event.data?.object as any)?.latest_charge ?? undefined,
-        });
 
-        await StripeConnectWebhookEvent.findByIdAndUpdate(eventDoc!._id, {
-          $set: { processingStatus: 'SUCCESS' },
-        });
-        
-        return { status: 'SUCCESS', httpStatus: 200 };
-      }
 
       // 2. Account onboarding / capability updates
       if (!accountId) {
