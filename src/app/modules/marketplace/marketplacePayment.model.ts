@@ -66,6 +66,7 @@ const paymentSchema = new Schema<IPayment>(
     },
     currency: { type: String, required: true },
     amount: { type: Number, required: true, min: 0 }, // In minor integer units (cents)
+    applicationFeeAmountCents: { type: Number, min: 0 },
     status: {
       type: String,
       enum: [

@@ -108,6 +108,10 @@ export class MarketplaceCheckoutService {
       sellerItemsMap.get(hostIdStr)!.items.push({ item, product });
     }
 
+    if (sellerItemsMap.size > 1) {
+      throw new AppError(400, 'Direct Charges strictly require all items in the cart to be from a single merchant. Please checkout items from one merchant at a time.');
+    }
+
     // 5. Seller Stripe Connected Account Resolution & Readiness Assertion
     const allocations: IPaymentAllocation[] = [];
     let totalPaymentAmountCents = 0;
@@ -178,6 +182,7 @@ export class MarketplaceCheckoutService {
         paymentType: 'PRODUCT_CART',
         currency,
         amount: totalPaymentAmountCents,
+        applicationFeeAmountCents: Math.round(totalPaymentAmountCents * 0.10), // 10% platform fee
         status: 'PENDING',
         allocations,
         purchasedCartItemIds: (cart.items as any[]).map((i) => i._id),
@@ -399,6 +404,7 @@ export class MarketplaceCheckoutService {
         paymentType: 'EVENT_TICKET',
         currency,
         amount: totalAmountCents,
+        applicationFeeAmountCents: Math.round(totalAmountCents * 0.10), // 10% platform fee
         status: 'PENDING',
         allocations,
       });

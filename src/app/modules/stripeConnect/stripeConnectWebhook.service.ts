@@ -9,6 +9,7 @@ import { OrganizerProfile } from '../organizerProfile/organizerProfile.model';
 import { StripeConnectWebhookEvent } from './stripeConnectWebhookEvent.model';
 import { evaluateStripeAccountStatus } from './stripeConnect.statusEvaluator';
 import { StripeSellerRole } from './stripeConnect.interface';
+import { stripeEventDispatcher } from '../payment/stripeWebhook.dispatcher';
 
 export interface IConnectWebhookProcessResult {
   status:
@@ -211,6 +212,40 @@ export class StripeConnectWebhookService {
 
     // Process event logic
     try {
+      // 1. Direct Charge Payment Intents (Phase 4 Marketplace)
+      if (
+        event.type === 'payment_intent.succeeded' ||
+        event.type === 'payment_intent.payment_failed' ||
+        event.type === 'charge.refunded' ||
+        event.type === 'charge.dispute.created'
+      ) {
+        const stripeObjectId = (event.data?.object as any)?.id;
+        const stripeObjectType = (event.data?.object as any)?.object;
+        
+        await stripeEventDispatcher.dispatch({
+          id: event.id,
+          type: event.type,
+          apiVersion: event.api_version || undefined,
+          created: event.created,
+          livemode: event.livemode,
+          account: (event as any).account || undefined,
+          objectId: stripeObjectId,
+          objectType: stripeObjectType,
+          metadata: (event.data?.object as any)?.metadata || undefined,
+          amount: (event.data?.object as any)?.amount ?? undefined,
+          currency: (event.data?.object as any)?.currency ?? undefined,
+          status: (event.data?.object as any)?.status ?? undefined,
+          latestCharge: (event.data?.object as any)?.latest_charge ?? undefined,
+        });
+
+        await StripeConnectWebhookEvent.findByIdAndUpdate(eventDoc!._id, {
+          $set: { processingStatus: 'SUCCESS' },
+        });
+        
+        return { status: 'SUCCESS', httpStatus: 200 };
+      }
+
+      // 2. Account onboarding / capability updates
       if (!accountId) {
         await StripeConnectWebhookEvent.findByIdAndUpdate(eventDoc!._id, {
           $set: {

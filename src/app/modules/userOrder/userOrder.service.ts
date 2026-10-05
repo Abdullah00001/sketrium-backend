@@ -24,6 +24,7 @@ const getOrderHistory = async (
   const filter: any = {
     user: userId,
     isDeleted: false,
+    paymentStatus: { $in: ['paid', 'completed'] },
   };
 
   // ✅ orderStatus দিলে filter করবে, না দিলে সব আসবে
@@ -360,6 +361,7 @@ const getMyProductOrders = async (
   // ─── Step 2: filter query বানাও ─────────────────────────────
   const query: Record<string, any> = {
     'items.product': { $in: myProductIds },
+    paymentStatus: { $in: ['paid', 'completed'] },
   };
 
   if (orderStatus) {

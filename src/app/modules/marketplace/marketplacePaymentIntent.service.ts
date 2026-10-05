@@ -113,10 +113,13 @@ export class MarketplacePaymentIntentService {
 
     if (!lockedPayment) {
       const current = await Payment.findById(payment._id);
+      const connectedAccountId = current?.allocations?.[0]?.stripeConnectedAccountId;
       if (current?.stripePaymentIntentOperationStatus === 'CREATED' && current.paymentIntentId) {
         const stripe = getStripeClient();
-        const existingPi = await stripe.paymentIntents.retrieve(current.paymentIntentId);
-        return { paymentIntentId: existingPi.id, clientSecret: existingPi.client_secret };
+        const existingPi = await stripe.paymentIntents.retrieve(current.paymentIntentId, {
+          stripeAccount: connectedAccountId,
+        });
+        return { paymentIntentId: existingPi.id, clientSecret: existingPi.client_secret, stripeAccount: connectedAccountId };
       }
       if (current?.stripePaymentIntentOperationStatus === 'CREATING') {
         // Concurrent caller wait loop (up to 2000ms) for primary thread to finish creation
@@ -125,8 +128,10 @@ export class MarketplacePaymentIntentService {
           const retryPayment = await Payment.findById(payment._id);
           if (retryPayment?.stripePaymentIntentOperationStatus === 'CREATED' && retryPayment.paymentIntentId) {
             const stripe = getStripeClient();
-            const existingPi = await stripe.paymentIntents.retrieve(retryPayment.paymentIntentId);
-            return { paymentIntentId: existingPi.id, clientSecret: existingPi.client_secret };
+            const existingPi = await stripe.paymentIntents.retrieve(retryPayment.paymentIntentId, {
+              stripeAccount: connectedAccountId,
+            });
+            return { paymentIntentId: existingPi.id, clientSecret: existingPi.client_secret, stripeAccount: connectedAccountId };
           }
         }
         throw new AppError(409, 'PaymentIntent creation currently in progress by another thread');
@@ -145,18 +150,30 @@ export class MarketplacePaymentIntentService {
       checkoutFingerprint: payment.checkoutFingerprint,
     };
 
-    // 6. Invoke Stripe PaymentIntent API with Persistent Idempotency Key
+    // 6. Invoke Stripe PaymentIntent API with Persistent Idempotency Key (Direct Charge)
     const stripe = getStripeClient();
+    const connectedAccountId = payment.allocations[0]?.stripeConnectedAccountId;
+    if (!connectedAccountId) {
+      throw new AppError(500, 'Payment missing connected account ID for Direct Charge');
+    }
+
     try {
+      const piParams: Stripe.PaymentIntentCreateParams = {
+        amount: payment.amount,
+        currency: payment.currency.toLowerCase(),
+        metadata,
+        automatic_payment_methods: { enabled: true },
+      };
+
+      if (payment.applicationFeeAmountCents && payment.applicationFeeAmountCents > 0) {
+        piParams.application_fee_amount = payment.applicationFeeAmountCents;
+      }
+
       const pi = await stripe.paymentIntents.create(
-        {
-          amount: payment.amount,
-          currency: payment.currency.toLowerCase(),
-          metadata,
-          automatic_payment_methods: { enabled: true },
-        },
+        piParams,
         {
           idempotencyKey: stripeIdempotencyKey,
+          stripeAccount: connectedAccountId,
         }
       );
 
@@ -185,7 +202,7 @@ export class MarketplacePaymentIntentService {
 
 
 
-      return { paymentIntentId: pi.id, clientSecret: pi.client_secret };
+      return { paymentIntentId: pi.id, clientSecret: pi.client_secret, stripeAccount: connectedAccountId };
     } catch (err: any) {
       const classification = classifyStripeError(err);
 

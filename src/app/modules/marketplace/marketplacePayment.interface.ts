@@ -77,6 +77,7 @@ export interface IPayment extends Document {
   reconciliationReason?: ReconciliationReason | null;
   currency: string;
   amount: number; // Integer minor units (cents)
+  applicationFeeAmountCents?: number;
   status: PaymentStatus;
   allocations: IPaymentAllocation[];
   stripeLastEventCreatedAt?: Date | null;
