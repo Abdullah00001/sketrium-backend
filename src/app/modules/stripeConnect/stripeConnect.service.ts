@@ -280,7 +280,7 @@ export class StripeConnectService {
     try {
       const newAccount = await stripe.accounts.create(
         {
-          type: 'express',
+          type: 'standard',
           country: user.country || 'US',
           email: user.email,
           capabilities: {
