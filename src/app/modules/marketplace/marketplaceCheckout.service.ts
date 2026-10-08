@@ -12,6 +12,7 @@ import { IPayment, IPaymentAllocation } from './marketplacePayment.interface';
 import { IReservationRecord } from './reservationRecord.interface';
 import { getStripeClient } from '../../utils/stripeClient';
 import { enqueueReconciliationJob } from '../../jobs/marketplaceReconciliation.queue';
+import { convertToSubunit } from '../../utils/currency.utils';
 import { Order } from '../userOrder/userOrder.model';
 import { Ticket } from '../Ticke/ticke.model';
 import User from '../user/user.model';
@@ -135,8 +136,8 @@ export class MarketplaceCheckoutService {
 
       for (const { item, product } of group.items) {
         const unitPrice = product.discountPrice > 0 ? product.discountPrice : product.price;
-        const lineSubtotalCents = Math.round(unitPrice * 100) * item.quantity;
-        const lineShippingCents = Math.round((product.shippingCost || 0) * 100);
+        const lineSubtotalCents = convertToSubunit(unitPrice, currency) * item.quantity;
+        const lineShippingCents = convertToSubunit(product.shippingCost || 0, currency);
 
         merchantSubtotalCents += lineSubtotalCents;
         merchantShippingCents += lineShippingCents;
@@ -370,7 +371,7 @@ export class MarketplaceCheckoutService {
     }
 
     // 4. Calculate Financial Allocation & Assert Invariants
-    const ticketPriceCents = Math.round((event.price || 0) * 100);
+    const ticketPriceCents = convertToSubunit(event.price || 0, currency);
     const totalAmountCents = ticketPriceCents * participantCount;
 
     if (totalAmountCents <= 0) {

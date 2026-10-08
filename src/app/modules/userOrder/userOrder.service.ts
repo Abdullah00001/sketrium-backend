@@ -7,6 +7,7 @@ import { Product } from '../product/product.model';
 import User from '../user/user.model';
 import { Order } from './userOrder.model';
 import Stripe from 'stripe';
+import { Payment } from '../marketplace/marketplacePayment.model';
 import httpStatus from 'http-status';
 import { BalanceModel } from '../Balance/balance.model';
 import mongoose from 'mongoose';
@@ -80,11 +81,19 @@ const cancelOrder = async (orderId: string, userId: string) => {
     throw new Error('Only processing orders can be cancelled');
   }
 
-  // Refund via Stripe if already paid
-  if (order.paymentStatus === 'paid' && order.stripePaymentIntentId) {
-    await stripe.refunds.create({
-      payment_intent: order.stripePaymentIntentId,
-    });
+  // Refund via Stripe if already paid or completed
+  if ((order.paymentStatus === 'paid' || order.paymentStatus === 'completed') && order.stripePaymentIntentId) {
+    const payment = await Payment.findOne({ paymentIntentId: order.stripePaymentIntentId });
+    
+    if (payment && payment.allocations && payment.allocations.length > 0 && payment.allocations[0].stripeConnectedAccountId) {
+      await stripe.refunds.create({
+        payment_intent: order.stripePaymentIntentId,
+      }, { stripeAccount: payment.allocations[0].stripeConnectedAccountId });
+    } else {
+      await stripe.refunds.create({
+        payment_intent: order.stripePaymentIntentId,
+      });
+    }
     order.paymentStatus = 'refunded';
   }
 
