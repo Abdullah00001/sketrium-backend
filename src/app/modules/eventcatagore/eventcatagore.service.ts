@@ -296,8 +296,8 @@ const getEventsByCategoryId = async (categoryId: string, query: any) => {
 
   const [events, total] = await Promise.all([
     Event.find(filter)
-      .populate("host", "name profileImage")
-      .populate("attendees", "name profileImage")
+      .populate("host", "fullName businessName email image")
+      .populate("attendees", "fullName image")
       .populate("category", "name image")
       .skip(skip)
       .limit(limit)
