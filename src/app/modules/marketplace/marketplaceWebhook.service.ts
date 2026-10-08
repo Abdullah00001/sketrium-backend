@@ -241,19 +241,15 @@ export class MarketplaceWebhookService {
           );
         }
 
-        // Phase 4C: Create durable TransferOperation records for each seller allocation inside Mongo transaction
-        const createdOps = await marketplaceTransferService.createTransferOperationsForPayment(payment._id, sessionA);
+        // Phase 4 (Direct Charges): No separate transfers needed.
+        // Update all allocations to COMPLETED since Stripe handles the funds directly.
+        await Payment.updateOne(
+          { _id: payment._id },
+          { $set: { "allocations.$[].transferStatus": "COMPLETED", "allocations.$[].transferredAt": new Date() } },
+          { session: sessionA }
+        );
 
         transactionASucceeded = true;
-
-        // Post-commit fire-and-forget BullMQ enqueueing for created TransferOperation records
-        for (const op of createdOps) {
-          if (op.status === 'NOT_STARTED') {
-            enqueueTransferJob(op._id.toString(), op.paymentId.toString(), op.allocationId).catch((err) =>
-              logger.warn(`Post-commit transfer enqueue blip for op ${op._id}: ${err.message}`)
-            );
-          }
-        }
       });
     } catch (txAErr: any) {
       logger.error(`Phase 4B/4C Transaction A Failed for payment ${payment._id}:`, txAErr);

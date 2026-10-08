@@ -29,7 +29,7 @@ export interface IOrder {
   shippingCost: number;
   tax: number;
   total: number;
-  paymentStatus: "pending" | "paid" | "failed" | "refunded";
+  paymentStatus: "pending" | "paid" | "completed" | "failed" | "refunded";
   orderStatus: "processing" | "shipped" | "delivered" | "cancelled";
   stripePaymentIntentId: string;
   isDeleted: boolean;

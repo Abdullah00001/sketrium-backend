@@ -10,8 +10,7 @@ import config from './app/config';
 import { startupLogger } from './app/utils/startupLogger';
 import { setupCronJobs } from './app/utils/cronJobs';
 import { initMarketplaceReconciliationWorker } from './app/jobs/marketplaceReconciliation.worker';
-import { initMarketplaceTransferWorker } from './app/jobs/marketplaceTransferQueue.job';
-import { startMarketplaceTransferSweeper, stopMarketplaceTransferSweeper } from './app/jobs/marketplaceTransferSweeper.job';
+
 
 const port = Number(config.port) || 1212;
 
@@ -19,8 +18,7 @@ const startServer = async () => {
   try {
     setupCronJobs();
     initMarketplaceReconciliationWorker();
-    initMarketplaceTransferWorker();
-    startMarketplaceTransferSweeper(120000); // Poll every 2 minutes
+
 
     await mongoose.connect(config.database_url as string);
     console.log('Database connected');
