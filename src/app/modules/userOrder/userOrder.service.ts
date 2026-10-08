@@ -24,7 +24,7 @@ const getOrderHistory = async (
 
   const filter: any = {
     user: userId,
-    isDeleted: false,
+    isDeleted: { $ne: true },
     paymentStatus: { $in: ['paid', 'completed'] },
   };
 
