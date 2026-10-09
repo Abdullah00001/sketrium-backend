@@ -10,6 +10,7 @@ import { OrganizerProfile } from '../organizerProfile/organizerProfile.model';
 import { IMerchantProfile } from '../merchantProfile/merchantProfile.interface';
 import { IOrganizerProfile } from '../organizerProfile/organizerProfile.interface';
 import { getStripeClient } from '../../utils/stripeClient';
+import { getIsoAlpha2CountryCode } from '../../utils/country.utils';
 import { onboardingTokenStore } from './stripeConnect.tokenStore';
 import { evaluateStripeAccountStatus } from './stripeConnect.statusEvaluator';
 import {
@@ -281,7 +282,7 @@ export class StripeConnectService {
       const newAccount = await stripe.accounts.create(
         {
           type: 'standard',
-          country: user.country || 'US',
+          country: getIsoAlpha2CountryCode(user.country || 'US'),
           email: user.email,
           capabilities: {
             card_payments: { requested: true },
