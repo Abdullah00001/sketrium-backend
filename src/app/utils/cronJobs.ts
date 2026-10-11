@@ -11,7 +11,12 @@ export const setupCronJobs = () => {
       const result = await User.updateMany(
         {
           isPremium: true,
-          'subscription.expiresAt': { $lt: now },
+          'subscription.expiresAt': { $type: 'date', $ne: null, $lt: now },
+          $or: [
+            { 'subscription.startsAt': { $exists: false } },
+            { 'subscription.startsAt': null },
+            { $expr: { $gte: ['$subscription.expiresAt', '$subscription.startsAt'] } },
+          ],
         },
         {
           $set: {

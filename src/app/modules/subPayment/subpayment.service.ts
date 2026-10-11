@@ -23,8 +23,8 @@ const handleRevenueCatWebhook = async (payload: any) => {
   }
 
   const type = event.type;
-  const expiresAt = event.expiration_at_ms ? new Date(event.expiration_at_ms) : undefined;
-  const startsAt = event.purchased_at_ms ? new Date(event.purchased_at_ms) : undefined;
+  const expiresAt = event.expiration_at_ms ? new Date(event.expiration_at_ms) : null;
+  const startsAt = event.purchased_at_ms ? new Date(event.purchased_at_ms) : new Date();
 
   if (['INITIAL_PURCHASE', 'RENEWAL', 'UNCANCELLATION', 'NON_RENEWING_PURCHASE'].includes(type)) {
     await User.findByIdAndUpdate(userId, {
@@ -62,12 +62,30 @@ const getRevenueCatSubscription = async (userId: string) => {
     daysRemaining = Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
   }
 
+  const isNewerPurchaseThanExpiry = Boolean(
+    subscription.startsAt &&
+    subscription.expiresAt &&
+    new Date(subscription.startsAt).getTime() > new Date(subscription.expiresAt).getTime()
+  );
+
+  const isPremiumUser =
+    Boolean(user.isPremium) ||
+    subscription.status === 'active' ||
+    subscription.status === 'trialing' ||
+    isNewerPurchaseThanExpiry ||
+    user.role === 'ORGANIZER' ||
+    user.role === 'MARCHANT';
+
+  const computedStatus = isPremiumUser
+    ? (subscription.status === 'expired' && isNewerPurchaseThanExpiry ? 'active' : (subscription.status || 'active'))
+    : (subscription.status || 'none');
+
   return {
-    isPremium: user.isPremium || false,
-    status: subscription.status || 'none',
+    isPremium: isPremiumUser,
+    status: computedStatus,
     startsAt: subscription.startsAt,
-    expiresAt: subscription.expiresAt,
-    daysRemaining,
+    expiresAt: isNewerPurchaseThanExpiry ? null : subscription.expiresAt,
+    daysRemaining: isNewerPurchaseThanExpiry ? 0 : daysRemaining,
     revenueCatPackageName: subscription.revenueCatPackageName,
     revenueCatEntitlementId: subscription.revenueCatEntitlementId,
   };
