@@ -5,13 +5,38 @@ import { USER_ROLE } from '../user/user.constant';
 
 const router = express.Router();
 
+// Webhook endpoints
+router.post('/revenuecat-webhook', PaymentController.revenueCatWebhook);
+router.post('/webhook', PaymentController.revenueCatWebhook);
+
+// On-demand sync endpoint
 router.post(
-  '/revenuecat-webhook',
-  PaymentController.revenueCatWebhook,
+  '/sync',
+  auth(
+    USER_ROLE.admin,
+    USER_ROLE.MARCHANT,
+    USER_ROLE.KAATEDJ,
+    USER_ROLE.ORGANIZER,
+    USER_ROLE.USER,
+  ),
+  PaymentController.syncSubscription,
+);
+
+// Subscription status
+router.get(
+  '/revenuecat-my-subscription',
+  auth(
+    USER_ROLE.admin,
+    USER_ROLE.MARCHANT,
+    USER_ROLE.KAATEDJ,
+    USER_ROLE.ORGANIZER,
+    USER_ROLE.USER,
+  ),
+  PaymentController.getRevenueCatSubscription,
 );
 
 router.get(
-  '/revenuecat-my-subscription',
+  '/my-subscription',
   auth(
     USER_ROLE.admin,
     USER_ROLE.MARCHANT,

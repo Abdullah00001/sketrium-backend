@@ -157,6 +157,10 @@ const UserSchema = new Schema<TUser, UserModel>(
       revenueCatPackageName: { type: String },
       revenueCatEntitlementId: { type: String },
       revenueCatOriginalAppUserId: { type: String },
+      activeEntitlements: [{ type: String }],
+      willRenew: { type: Boolean, default: true },
+      billingIssue: { type: Boolean, default: false },
+      environment: { type: String },
     },
 
     coverImage: {

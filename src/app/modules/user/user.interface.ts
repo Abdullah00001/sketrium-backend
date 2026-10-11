@@ -73,11 +73,15 @@ export interface TUser {
   isPremium?: boolean;
   subscription?: {
     startsAt?: Date;
-    expiresAt?: Date;
+    expiresAt?: Date | null;
     status?: 'active' | 'trialing' | 'expired' | 'cancelled' | 'none';
     revenueCatPackageName?: string;
     revenueCatEntitlementId?: string;
     revenueCatOriginalAppUserId?: string;
+    activeEntitlements?: string[];
+    willRenew?: boolean;
+    billingIssue?: boolean;
+    environment?: string;
   };
 }
 

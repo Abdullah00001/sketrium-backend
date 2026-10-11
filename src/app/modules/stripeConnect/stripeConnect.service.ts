@@ -384,9 +384,9 @@ export class StripeConnectService {
 
     // Role-specific subscription entitlement authorization check
     if (role === 'MARCHANT') {
-      assertMerchantRoleAccess(user);
+      await assertMerchantRoleAccess(user);
     } else {
-      assertOrganizerRoleAccess(user);
+      await assertOrganizerRoleAccess(user);
     }
 
     let profile = await this.getOrCreateProfile(userId, role);
@@ -513,9 +513,9 @@ export class StripeConnectService {
     }
 
     if (role === 'MARCHANT') {
-      assertMerchantRoleAccess(user);
+      await assertMerchantRoleAccess(user);
     } else {
-      assertOrganizerRoleAccess(user);
+      await assertOrganizerRoleAccess(user);
     }
 
     const Model = this.getModel(role);

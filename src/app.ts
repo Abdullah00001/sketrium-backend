@@ -111,8 +111,25 @@ app.use(morgan(morganMessageFormat, { stream: streamConfig }));
 
 app.use('/api/v1', router);
 
-app.get('/', (req: Request, res: Response) => {
+// Aliases for RevenueCat integrations
+import { PaymentController } from './app/modules/subPayment/subpayment.controller';
+import auth from './app/middleware/auth.middleware';
+import { USER_ROLE } from './app/modules/user/user.constant';
 
+app.post('/webhooks/revenuecat', PaymentController.revenueCatWebhook);
+app.post(
+  '/subscriptions/sync',
+  auth(
+    USER_ROLE.admin,
+    USER_ROLE.MARCHANT,
+    USER_ROLE.KAATEDJ,
+    USER_ROLE.ORGANIZER,
+    USER_ROLE.USER,
+  ),
+  PaymentController.syncSubscription,
+);
+
+app.get('/', (req: Request, res: Response) => {
   res.send('Server is running perfectly!');
 });
 

@@ -1,6 +1,7 @@
 import { TUser, UserRole } from '../user/user.interface';
 import AppError from '../../error/AppError';
 import httpStatus from 'http-status';
+import { PaymentService } from '../subPayment/subpayment.service';
 
 export const canAccessMerchantRole = (user: TUser): boolean => {
   if (!user) return false;
@@ -22,6 +23,12 @@ export const canAccessMerchantRole = (user: TUser): boolean => {
     return true;
   }
 
+  // Active entitlements array
+  const activeEntitlements = user.subscription?.activeEntitlements || [];
+  if (activeEntitlements.includes('merchant_access')) {
+    return true;
+  }
+
   // Check if purchase was made more recently than stale expiration date
   const isNewerPurchaseThanExpiry =
     user.subscription?.startsAt &&
@@ -36,10 +43,10 @@ export const canAccessMerchantRole = (user: TUser): boolean => {
     user.subscription?.status === 'trialing' ||
     Boolean(isNewerPurchaseThanExpiry) ||
     Boolean(
-      user.subscription?.revenueCatEntitlementId?.toLowerCase().includes('merchant')
+      user.subscription?.revenueCatEntitlementId?.toLowerCase().includes('merchant'),
     ) ||
     Boolean(
-      user.subscription?.revenueCatPackageName?.toLowerCase().includes('merchant')
+      user.subscription?.revenueCatPackageName?.toLowerCase().includes('merchant'),
     );
 
   return Boolean(hasActiveSubscription);
@@ -65,6 +72,12 @@ export const canAccessOrganizerRole = (user: TUser): boolean => {
     return true;
   }
 
+  // Active entitlements array
+  const activeEntitlements = user.subscription?.activeEntitlements || [];
+  if (activeEntitlements.includes('organizer_access')) {
+    return true;
+  }
+
   // Check if purchase was made more recently than stale expiration date
   const isNewerPurchaseThanExpiry =
     user.subscription?.startsAt &&
@@ -79,29 +92,69 @@ export const canAccessOrganizerRole = (user: TUser): boolean => {
     user.subscription?.status === 'trialing' ||
     Boolean(isNewerPurchaseThanExpiry) ||
     Boolean(
-      user.subscription?.revenueCatEntitlementId?.toLowerCase().includes('organizer')
+      user.subscription?.revenueCatEntitlementId?.toLowerCase().includes('organizer'),
     ) ||
     Boolean(
-      user.subscription?.revenueCatPackageName?.toLowerCase().includes('organizer')
+      user.subscription?.revenueCatPackageName?.toLowerCase().includes('organizer'),
     );
 
   return Boolean(hasActiveSubscription);
 };
 
-export const assertMerchantRoleAccess = (user: TUser): void => {
-  if (!canAccessMerchantRole(user)) {
-    throw new AppError(
-      httpStatus.PAYMENT_REQUIRED,
-      'Active subscription required to access Merchant role onboarding.',
+export const assertMerchantRoleAccess = async (user: TUser): Promise<void> => {
+  if (canAccessMerchantRole(user)) {
+    return;
+  }
+
+  // On-demand fallback: Check RevenueCat live API before returning 402!
+  try {
+    const liveSync = await PaymentService.syncUserRevenueCatEntitlements(
+      user._id?.toString() || user.id,
+    );
+    if (
+      liveSync &&
+      (liveSync.activeEntitlements?.includes('merchant_access') ||
+        liveSync.isPremium)
+    ) {
+      return;
+    }
+  } catch (err: any) {
+    console.warn(
+      `[assertMerchantRoleAccess] Live sync check failed: ${err.message}`,
     );
   }
+
+  throw new AppError(
+    httpStatus.PAYMENT_REQUIRED,
+    'Active subscription required to access Merchant role onboarding.',
+  );
 };
 
-export const assertOrganizerRoleAccess = (user: TUser): void => {
-  if (!canAccessOrganizerRole(user)) {
-    throw new AppError(
-      httpStatus.PAYMENT_REQUIRED,
-      'Active subscription required to access Organizer role onboarding.',
+export const assertOrganizerRoleAccess = async (user: TUser): Promise<void> => {
+  if (canAccessOrganizerRole(user)) {
+    return;
+  }
+
+  // On-demand fallback: Check RevenueCat live API before returning 402!
+  try {
+    const liveSync = await PaymentService.syncUserRevenueCatEntitlements(
+      user._id?.toString() || user.id,
+    );
+    if (
+      liveSync &&
+      (liveSync.activeEntitlements?.includes('organizer_access') ||
+        liveSync.isPremium)
+    ) {
+      return;
+    }
+  } catch (err: any) {
+    console.warn(
+      `[assertOrganizerRoleAccess] Live sync check failed: ${err.message}`,
     );
   }
+
+  throw new AppError(
+    httpStatus.PAYMENT_REQUIRED,
+    'Active subscription required to access Organizer role onboarding.',
+  );
 };
