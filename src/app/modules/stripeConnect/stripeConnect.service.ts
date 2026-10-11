@@ -467,8 +467,17 @@ export class StripeConnectService {
       profile._id!.toString(),
     );
 
-    const backendUrl =
-      config.backend_url || `http://localhost:${config.port || 5005}`;
+    let backendUrl = (config.backend_url || 'https://api.skatrium.com').replace(/\/+$/, '');
+    if (backendUrl.endsWith('/api/v1')) {
+      backendUrl = backendUrl.slice(0, -7);
+    }
+    if (
+      backendUrl.includes('103.186.20.117') ||
+      backendUrl.includes('localhost') ||
+      backendUrl.includes('127.0.0.1')
+    ) {
+      backendUrl = 'https://api.skatrium.com';
+    }
     const returnUrl =
       config.stripe.connect_return_url ||
       `${backendUrl}/api/v1/connect/return?token=${rawToken}`;
@@ -613,7 +622,14 @@ export class StripeConnectService {
       payload.role,
     );
 
-    const baseUrl = config.frontend_url || 'https://skatrium.com';
+    let baseUrl = config.frontend_url || 'https://skatrium.com';
+    if (
+      baseUrl.includes('10.10.10.78') ||
+      baseUrl.includes('localhost') ||
+      baseUrl.includes('127.0.0.1')
+    ) {
+      baseUrl = 'https://skatrium.com';
+    }
     return `${baseUrl}/stripe-connect-callback?status=${statusResult.onboardingStatus}&role=${payload.role}`;
   }
 
