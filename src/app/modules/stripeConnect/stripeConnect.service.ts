@@ -480,10 +480,10 @@ export class StripeConnectService {
     }
     const returnUrl =
       config.stripe.connect_return_url ||
-      `${backendUrl}/api/v1/connect/return?token=${rawToken}`;
+      `${backendUrl}/connect/return?role=${role}&token=${rawToken}`;
     const refreshUrl =
       config.stripe.connect_refresh_url ||
-      `${backendUrl}/api/v1/connect/refresh?token=${rawToken}`;
+      `${backendUrl}/connect/return?role=${role}&refresh=1&token=${rawToken}`;
 
     const accountLink = await stripe.accountLinks.create({
       account: profile.stripeConnectedAccountId!,

@@ -129,17 +129,50 @@ app.post(
   PaymentController.syncSubscription,
 );
 
-const renderStripeConnectCallback = (req: Request, res: Response) => {
-  const status = (req.query.status as string) || 'UNKNOWN';
+import { onboardingTokenStore } from './app/modules/stripeConnect/stripeConnect.tokenStore';
+import { stripeConnectService } from './app/modules/stripeConnect/stripeConnect.service';
+
+const renderStripeConnectCallback = async (req: Request, res: Response) => {
   const role = (req.query.role as string) || '';
+  const token = req.query.token as string;
+  let status = (req.query.status as string) || '';
+
+  if (token) {
+    try {
+      const payload = onboardingTokenStore.consumeToken(token);
+      if (payload) {
+        const statusResult = await stripeConnectService.getSellerStatus(
+          payload.userId,
+          payload.role,
+        );
+        status = statusResult.onboardingStatus;
+      }
+    } catch (e) {
+      // Ignore token consumption errors for UI rendering
+    }
+  }
+
+  if (!status) {
+    status = 'READY';
+  }
+
+  // Preserve all relevant query parameters
+  const queryParams = new URLSearchParams();
+  if (role) queryParams.set('role', role);
+  if (status) queryParams.set('status', status);
+  if (req.query.refresh) queryParams.set('refresh', String(req.query.refresh));
+  const queryString = queryParams.toString();
+
   const isReady = status === 'READY';
+  const schemeUrl = `skatrium://connect-return${queryString ? '?' + queryString : ''}`;
+  const intentUrl = `intent://connect-return${queryString ? '?' + queryString : ''}#Intent;scheme=skatrium;package=com.skatriumltd.skatriumapp;end`;
 
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Skatrium - Payout Setup</title>
+  <title>Return to Skatrium</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -222,28 +255,44 @@ const renderStripeConnectCallback = (req: Request, res: Response) => {
     <div class="icon-wrapper">
       ${isReady ? '&#10003;' : '&#8505;'}
     </div>
-    <h1>${isReady ? 'Payout Setup Complete!' : 'Setup Session Ended'}</h1>
-    <p>${
-      isReady
-        ? 'Your Stripe account is connected. You can now receive payouts directly through Skatrium.'
-        : 'You can return to the Skatrium app and resume or complete your payout setup at any time.'
-    }</p>
-    <a id="returnBtn" href="skatrium://connect-return?status=${encodeURIComponent(
-      status,
-    )}&role=${encodeURIComponent(role)}" class="btn">
-      Return to Skatrium App
+    <h1>${isReady ? 'Payout Setup Complete' : 'Session Completed'}</h1>
+    <p>Returning you to the Skatrium app...</p>
+    <a id="returnBtn" href="${intentUrl}" class="btn">
+      Return to Skatrium
     </a>
     <div class="hint">
-      Redirecting automatically... If the app does not open, tap the button above or switch back to Skatrium.
+      If the app does not open automatically, tap the button above.
     </div>
   </div>
 
   <script>
-    const deepLink = "skatrium://connect-return?status=" + encodeURIComponent("${status}") + "&role=" + encodeURIComponent("${role}");
-    window.location.href = deepLink;
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    const intentUrl = "${intentUrl}";
+    const schemeUrl = "${schemeUrl}";
+    const targetUrl = isAndroid ? intentUrl : schemeUrl;
+
+    const btn = document.getElementById("returnBtn");
+    if (btn) {
+      btn.setAttribute("href", targetUrl);
+    }
+
+    // Immediate redirect
+    try {
+      window.location.href = targetUrl;
+    } catch(e) {}
+
+    // Fallback on Android if intent scheme is not intercepted immediately
+    if (isAndroid) {
+      setTimeout(function() {
+        try {
+          window.location.href = schemeUrl;
+        } catch(e) {}
+      }, 1500);
+    }
+
     setTimeout(function() {
       try { window.close(); } catch(e) {}
-    }, 2000);
+    }, 2500);
   </script>
 </body>
 </html>`;
@@ -252,6 +301,8 @@ const renderStripeConnectCallback = (req: Request, res: Response) => {
   res.send(html);
 };
 
+app.get('/connect/return', renderStripeConnectCallback);
+app.get('/connect/refresh', renderStripeConnectCallback);
 app.get('/stripe-connect-callback', renderStripeConnectCallback);
 app.get('/api/v1/stripe-connect-callback', renderStripeConnectCallback);
 
