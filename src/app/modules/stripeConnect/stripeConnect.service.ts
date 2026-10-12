@@ -622,15 +622,18 @@ export class StripeConnectService {
       payload.role,
     );
 
-    let baseUrl = config.frontend_url || 'https://skatrium.com';
-    if (
-      baseUrl.includes('10.10.10.78') ||
-      baseUrl.includes('localhost') ||
-      baseUrl.includes('127.0.0.1')
-    ) {
-      baseUrl = 'https://skatrium.com';
+    let backendUrl = (config.backend_url || 'https://api.skatrium.com').replace(/\/+$/, '');
+    if (backendUrl.endsWith('/api/v1')) {
+      backendUrl = backendUrl.slice(0, -7);
     }
-    return `${baseUrl}/stripe-connect-callback?status=${statusResult.onboardingStatus}&role=${payload.role}`;
+    if (
+      backendUrl.includes('103.186.20.117') ||
+      backendUrl.includes('localhost') ||
+      backendUrl.includes('127.0.0.1')
+    ) {
+      backendUrl = 'https://api.skatrium.com';
+    }
+    return `${backendUrl}/stripe-connect-callback?status=${statusResult.onboardingStatus}&role=${payload.role}`;
   }
 
   /**

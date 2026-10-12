@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import httpStatus from 'http-status';
+import config from '../../config';
 import catchAsync from '../../utils/catchAsync';
 import sendResponse from '../../utils/sendResponse';
 import { stripeConnectService } from './stripeConnect.service';
@@ -61,14 +62,50 @@ const getOrganizerStatus = catchAsync(async (req: Request, res: Response) => {
 
 const handleReturn = catchAsync(async (req: Request, res: Response) => {
   const token = req.query.token as string;
-  const redirectUrl = await stripeConnectService.handleReturn(token);
-  res.redirect(redirectUrl);
+  try {
+    const redirectUrl = await stripeConnectService.handleReturn(token);
+    res.redirect(redirectUrl);
+  } catch (err: any) {
+    const acceptHeader = req.headers['accept'] || '';
+    const isBrowser =
+      typeof acceptHeader === 'string' &&
+      acceptHeader.includes('text/html') &&
+      !acceptHeader.startsWith('application/json');
+
+    if (isBrowser) {
+      let backendUrl = (config.backend_url || 'https://api.skatrium.com').replace(/\/+$/, '');
+      if (backendUrl.endsWith('/api/v1')) {
+        backendUrl = backendUrl.slice(0, -7);
+      }
+      return res.redirect(`${backendUrl}/stripe-connect-callback?status=SESSION_ENDED`);
+    }
+
+    throw err;
+  }
 });
 
 const handleRefresh = catchAsync(async (req: Request, res: Response) => {
   const token = req.query.token as string;
-  const redirectUrl = await stripeConnectService.handleRefresh(token);
-  res.redirect(redirectUrl);
+  try {
+    const redirectUrl = await stripeConnectService.handleRefresh(token);
+    res.redirect(redirectUrl);
+  } catch (err: any) {
+    const acceptHeader = req.headers['accept'] || '';
+    const isBrowser =
+      typeof acceptHeader === 'string' &&
+      acceptHeader.includes('text/html') &&
+      !acceptHeader.startsWith('application/json');
+
+    if (isBrowser) {
+      let backendUrl = (config.backend_url || 'https://api.skatrium.com').replace(/\/+$/, '');
+      if (backendUrl.endsWith('/api/v1')) {
+        backendUrl = backendUrl.slice(0, -7);
+      }
+      return res.redirect(`${backendUrl}/stripe-connect-callback?status=SESSION_EXPIRED`);
+    }
+
+    throw err;
+  }
 });
 
 const handleConnectWebhook = catchAsync(async (req: Request, res: Response) => {

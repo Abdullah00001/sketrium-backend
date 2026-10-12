@@ -129,6 +129,132 @@ app.post(
   PaymentController.syncSubscription,
 );
 
+const renderStripeConnectCallback = (req: Request, res: Response) => {
+  const status = (req.query.status as string) || 'UNKNOWN';
+  const role = (req.query.role as string) || '';
+  const isReady = status === 'READY';
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skatrium - Payout Setup</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #0F0F11;
+      color: #FFFFFF;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+    .card {
+      background: #1A1A1E;
+      border: 1px solid #2E2E36;
+      border-radius: 24px;
+      padding: 36px 24px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }
+    .brand {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #C7923E;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .icon-wrapper {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: ${isReady ? 'rgba(34, 197, 94, 0.15)' : 'rgba(199, 146, 62, 0.15)'};
+      color: ${isReady ? '#22C55E' : '#C7923E'};
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      font-size: 34px;
+      font-weight: bold;
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: #FFFFFF;
+    }
+    p {
+      font-size: 14px;
+      color: #A0A0AB;
+      line-height: 1.5;
+      margin-bottom: 28px;
+    }
+    .btn {
+      display: block;
+      background: #C7923E;
+      color: #FFFFFF;
+      font-weight: 700;
+      font-size: 16px;
+      padding: 16px 24px;
+      border-radius: 14px;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+    .btn:active {
+      opacity: 0.85;
+    }
+    .hint {
+      margin-top: 18px;
+      font-size: 12px;
+      color: #6C6C78;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">Skatrium</div>
+    <div class="icon-wrapper">
+      ${isReady ? '&#10003;' : '&#8505;'}
+    </div>
+    <h1>${isReady ? 'Payout Setup Complete!' : 'Setup Session Ended'}</h1>
+    <p>${
+      isReady
+        ? 'Your Stripe account is connected. You can now receive payouts directly through Skatrium.'
+        : 'You can return to the Skatrium app and resume or complete your payout setup at any time.'
+    }</p>
+    <a id="returnBtn" href="skatrium://connect-return?status=${encodeURIComponent(
+      status,
+    )}&role=${encodeURIComponent(role)}" class="btn">
+      Return to Skatrium App
+    </a>
+    <div class="hint">
+      Redirecting automatically... If the app does not open, tap the button above or switch back to Skatrium.
+    </div>
+  </div>
+
+  <script>
+    const deepLink = "skatrium://connect-return?status=" + encodeURIComponent("${status}") + "&role=" + encodeURIComponent("${role}");
+    window.location.href = deepLink;
+    setTimeout(function() {
+      try { window.close(); } catch(e) {}
+    }, 2000);
+  </script>
+</body>
+</html>`;
+
+  res.setHeader('Content-Type', 'text/html');
+  res.send(html);
+};
+
+app.get('/stripe-connect-callback', renderStripeConnectCallback);
+app.get('/api/v1/stripe-connect-callback', renderStripeConnectCallback);
+
 app.get('/', (req: Request, res: Response) => {
   res.send('Server is running perfectly!');
 });
