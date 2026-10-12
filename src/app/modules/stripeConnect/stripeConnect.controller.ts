@@ -77,7 +77,14 @@ const handleReturn = catchAsync(async (req: Request, res: Response) => {
       if (backendUrl.endsWith('/api/v1')) {
         backendUrl = backendUrl.slice(0, -7);
       }
-      return res.redirect(`${backendUrl}/stripe-connect-callback?status=SESSION_ENDED`);
+      if (
+        backendUrl.includes('103.186.20.117') ||
+        backendUrl.includes('localhost') ||
+        backendUrl.includes('127.0.0.1')
+      ) {
+        backendUrl = 'https://api.skatrium.com';
+      }
+      return res.redirect(`${backendUrl}/connect/return?status=SESSION_ENDED`);
     }
 
     throw err;
@@ -101,7 +108,14 @@ const handleRefresh = catchAsync(async (req: Request, res: Response) => {
       if (backendUrl.endsWith('/api/v1')) {
         backendUrl = backendUrl.slice(0, -7);
       }
-      return res.redirect(`${backendUrl}/stripe-connect-callback?status=SESSION_EXPIRED`);
+      if (
+        backendUrl.includes('103.186.20.117') ||
+        backendUrl.includes('localhost') ||
+        backendUrl.includes('127.0.0.1')
+      ) {
+        backendUrl = 'https://api.skatrium.com';
+      }
+      return res.redirect(`${backendUrl}/connect/return?status=SESSION_EXPIRED&refresh=1`);
     }
 
     throw err;
