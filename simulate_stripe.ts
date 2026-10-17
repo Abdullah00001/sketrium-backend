@@ -28,8 +28,8 @@ async function simulate() {
     // 2. Create a Direct Charge Payment Intent for $20 USD
     const amount = 20; // $20
     const currency = 'usd';
-    const amountCents = convertToSubunit(amount, currency);
-    const applicationFeeAmountCents = Math.round(amountCents * 0.10); // 10% Skatrium Fee ($2.00)
+    const feePercent = Number(process.env.STRIPE_PLATFORM_FEE_PERCENT) || 5;
+    const applicationFeeAmountCents = Math.round(amountCents * (feePercent / 100)); // 5% Skatrium Fee ($1.00)
 
     console.log(`\n[2] Creating a Direct Charge PaymentIntent for $${amount} USD...`);
     const paymentIntent = await stripe.paymentIntents.create({
@@ -79,7 +79,7 @@ async function simulate() {
     console.log(`    ℹ️ Status: ${refund.status}`);
 
     console.log('\n--- SIMULATION COMPLETED SUCCESSFULLY ---');
-    console.log('The customer paid $20 directly to the merchant. Skatrium collected a $2 platform fee.');
+    console.log('The customer paid $20 directly to the merchant. Skatrium collected a $1 platform fee (5%).');
     console.log('The refund was then successfully deducted from the merchant\'s balance without Skatrium being liable.');
 
   } catch (err: any) {

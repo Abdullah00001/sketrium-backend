@@ -16,6 +16,13 @@ import { convertToSubunit } from '../../utils/currency.utils';
 import { Order } from '../userOrder/userOrder.model';
 import { Ticket } from '../Ticke/ticke.model';
 import User from '../user/user.model';
+import config from '../../config';
+
+const getPlatformFeeRate = (): number => {
+  const percent = config.stripe?.platform_fee_percent ?? 5;
+  return percent / 100;
+};
+
 export class MarketplaceCheckoutService {
   /**
    * Deterministically generates a canonical SHA-256 fingerprint for checkout parameters.
@@ -183,7 +190,7 @@ export class MarketplaceCheckoutService {
         paymentType: 'PRODUCT_CART',
         currency,
         amount: totalPaymentAmountCents,
-        applicationFeeAmountCents: Math.round(totalPaymentAmountCents * 0.10), // 10% platform fee
+        applicationFeeAmountCents: Math.round(totalPaymentAmountCents * getPlatformFeeRate()), // 5% platform fee
         status: 'PENDING',
         allocations,
         purchasedCartItemIds: (cart.items as any[]).map((i) => i._id),
@@ -405,7 +412,7 @@ export class MarketplaceCheckoutService {
         paymentType: 'EVENT_TICKET',
         currency,
         amount: totalAmountCents,
-        applicationFeeAmountCents: Math.round(totalAmountCents * 0.10), // 10% platform fee
+        applicationFeeAmountCents: Math.round(totalAmountCents * getPlatformFeeRate()), // 5% platform fee
         status: 'PENDING',
         allocations,
       });
